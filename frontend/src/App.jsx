@@ -1,0 +1,521 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Activity, Bell, BookOpen, CircleHelp, Cpu, Database, LayoutDashboard, ListChecks, Map as MapIcon, Radio, Users, Warehouse } from 'lucide-react';
+import {
+  addCrop,
+  addIrrigation,
+  addSensor,
+  beginGoogleOAuth,
+  createGreenhouse,
+  deleteGreenhouse,
+  fetchAlerts,
+  fetchCurrentOAuthUser,
+  fetchGreenhouses,
+  fetchUsers,
+  loginWithEmail,
+  resolveAlert,
+  createUser,
+  updateUserRole,
+  updateGreenhouse,
+  updateCrop,
+  updateSensor,
+  updateIrrigation,
+  fetchDashboard,
+  fetchZones,
+  createZone,
+  updateZone,
+  deleteZone,
+  fetchSensors,
+  updateSensorRecord,
+  deleteSensor,
+  fetchReadings,
+  createReading,
+  updateReading,
+  deleteReading,
+  fetchActuators,
+  createActuator,
+  updateActuator,
+  deleteActuator,
+  fetchRules,
+  createRule,
+  updateRule,
+  deleteRule,
+  fetchAuditLogs
+} from './api.js';
+import { AlertsSection } from './components/AlertsSection.jsx';
+import { AppHeader, SidebarBrand } from './components/AppHeader.jsx';
+import { DashboardSection } from './components/DashboardSection.jsx';
+import { CrudSection } from './components/CrudSection.jsx';
+import { DataSection } from './components/DataSection.jsx';
+import { GreenhousesSection } from './components/GreenhousesSection.jsx';
+import { LoginScreen } from './components/LoginScreen.jsx';
+import { ManualSection } from './components/ManualSection.jsx';
+import { Navbar } from './components/Navbar.jsx';
+import { OperationsSection } from './components/OperationsSection.jsx';
+import { UsersSection } from './components/UsersSection.jsx';
+import { dictionary } from './i18n.js';
+import './styles.css';
+
+const emptyGreenhouse = { name: '', location: '', areaSquareMeters: 40, active: true };
+const emptyCrop = { name: '', variety: '', plantedAt: '', expectedHarvestAt: '' };
+const emptySensor = { code: '', type: 'TEMPERATURE', unit: 'C', minThreshold: 18, maxThreshold: 30 };
+const emptyIrrigation = { durationMinutes: 10, waterLiters: 20, mode: 'MANUAL' };
+const emptyUser = { fullName: '', email: '', password: '', role: 'VIEWER' };
+
+export function App() {
+  const [language, setLanguage] = useState('es');
+  const [session, setSession] = useStoredSession();
+  const [activeSection, setActiveSection] = useState('dashboard');
+  const [greenhouses, setGreenhouses] = useState([]);
+  const [alerts, setAlerts] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [dashboard, setDashboard] = useState(null);
+  const [zones, setZones] = useState([]);
+  const [allSensors, setAllSensors] = useState([]);
+  const [readings, setReadings] = useState([]);
+  const [actuators, setActuators] = useState([]);
+  const [rules, setRules] = useState([]);
+  const [logs, setLogs] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [greenhouseForm, setGreenhouseForm] = useState(emptyGreenhouse);
+  const [greenhouseEditForm, setGreenhouseEditForm] = useState(emptyGreenhouse);
+  const [cropForm, setCropForm] = useState(emptyCrop);
+  const [sensorForm, setSensorForm] = useState(emptySensor);
+  const [irrigationForm, setIrrigationForm] = useState(emptyIrrigation);
+  const [userForm, setUserForm] = useState(emptyUser);
+  const [message, setMessage] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const t = dictionary[language];
+
+  async function refresh() {
+    const [greenhouseData, alertData, userData, dashboardData, zoneData, sensorData, readingData, actuatorData, ruleData, logData] = await Promise.all([
+      fetchGreenhouses(),
+      fetchAlerts(),
+      fetchUsers(),
+      fetchDashboard(),
+      fetchZones(),
+      fetchSensors(),
+      fetchReadings(),
+      fetchActuators(),
+      fetchRules(),
+      fetchAuditLogs()
+    ]);
+    setGreenhouses(greenhouseData);
+    setAlerts(alertData);
+    setUsers(userData);
+    setDashboard(dashboardData);
+    setZones(zoneData);
+    setAllSensors(sensorData);
+    setReadings(readingData);
+    setActuators(actuatorData);
+    setRules(ruleData);
+    setLogs(logData);
+    setSelectedId((current) => {
+      if (greenhouseData.some((greenhouse) => greenhouse.id === current)) return current;
+      return pickDefaultGreenhouseId(greenhouseData, sensorData, readingData);
+    });
+  }
+
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('oauth') !== 'google') return;
+
+    if (params.get('status') === 'success') {
+      fetchCurrentOAuthUser()
+        .then(saveSession)
+        .catch(() => setLoginError(t.invalidLogin))
+        .finally(clearOAuthQuery);
+    } else {
+      setLoginError(params.get('message') ?? t.invalidLogin);
+      clearOAuthQuery();
+    }
+  }, [t.invalidLogin]);
+
+  const selected = greenhouses.find((greenhouse) => greenhouse.id === selectedId) ?? greenhouses[0];
+  const totals = useMemo(() => ({
+    greenhouses: greenhouses.length,
+    crops: greenhouses.reduce((sum, greenhouse) => sum + greenhouse.cropCount, 0),
+    sensors: greenhouses.reduce((sum, greenhouse) => sum + greenhouse.sensorCount, 0),
+    alerts: alerts.length,
+    irrigation: greenhouses.reduce((sum, greenhouse) => sum + (greenhouse.irrigationEvents?.length ?? 0), 0)
+  }), [greenhouses, alerts]);
+
+  useEffect(() => {
+    if (!selected) return;
+    setGreenhouseEditForm({
+      name: selected.name,
+      location: selected.location,
+      areaSquareMeters: selected.areaSquareMeters,
+      active: selected.active
+    });
+  }, [selected?.id, selected?.name, selected?.location, selected?.areaSquareMeters, selected?.active]);
+
+  const sections = [
+    { id: 'dashboard', label: t.dashboard, icon: LayoutDashboard },
+    { id: 'greenhouses', label: t.greenhouses, icon: Warehouse },
+    { id: 'zones', label: t.zones, icon: MapIcon },
+    { id: 'sensors', label: t.sensors, icon: Radio },
+    { id: 'readings', label: t.readings, icon: Activity },
+    { id: 'actuators', label: t.actuators, icon: Cpu },
+    { id: 'rules', label: t.rules, icon: ListChecks },
+    { id: 'operations', label: t.operations, icon: Activity },
+    { id: 'alerts', label: t.alerts, icon: Bell },
+    { id: 'logs', label: t.auditLog, icon: BookOpen },
+    { id: 'users', label: t.users, icon: Users },
+    { id: 'data', label: t.data, icon: Database },
+    { id: 'manual', label: t.manual, icon: CircleHelp }
+  ];
+
+  async function handleLogin(credentials) {
+    try {
+      setLoginError('');
+      const user = await loginWithEmail(credentials);
+      saveSession(user);
+    } catch {
+      setLoginError(t.invalidLogin);
+    }
+  }
+
+  async function handleGoogleLogin() {
+    setLoginError('');
+    beginGoogleOAuth();
+  }
+
+  function saveSession(user) {
+    localStorage.setItem('greenhouse-session', JSON.stringify(user));
+    setSession(user);
+  }
+
+  function handleLogout() {
+    localStorage.removeItem('greenhouse-session');
+    setSession(null);
+  }
+
+  async function handleCreateGreenhouse(event) {
+    event.preventDefault();
+    const created = await createGreenhouse({
+      ...greenhouseForm,
+      areaSquareMeters: Number(greenhouseForm.areaSquareMeters)
+    });
+    setMessage(`Invernadero creado: ${created.name}`);
+    setGreenhouseForm(emptyGreenhouse);
+    await refresh();
+    setSelectedId(created.id);
+    setActiveSection('operations');
+  }
+
+  async function handleUpdateGreenhouse(event) {
+    event.preventDefault();
+    if (!selected) return;
+    const updated = await updateGreenhouse(selected.id, {
+      ...greenhouseEditForm,
+      areaSquareMeters: Number(greenhouseEditForm.areaSquareMeters)
+    });
+    setMessage(`Invernadero actualizado: ${updated.name}`);
+    await refresh();
+  }
+
+  async function handleDeleteGreenhouse() {
+    if (!selected) return;
+    await deleteGreenhouse(selected.id);
+    setMessage(`Invernadero eliminado: ${selected.name}`);
+    await refresh();
+  }
+
+  function handleSelectGreenhouse(id) {
+    const greenhouse = greenhouses.find((item) => item.id === id);
+    setSelectedId(id);
+    if (greenhouse) {
+      setGreenhouseEditForm({
+        name: greenhouse.name,
+        location: greenhouse.location,
+        areaSquareMeters: greenhouse.areaSquareMeters,
+        active: greenhouse.active
+      });
+    }
+  }
+
+  async function handleAddCrop(event) {
+    event.preventDefault();
+    if (!selected) return;
+    await addCrop(selected.id, cropForm);
+    setMessage('Cultivo agregado');
+    setCropForm(emptyCrop);
+    await refresh();
+  }
+
+  async function handleUpdateCrop(cropId, payload) {
+    if (!selected) return;
+    await updateCrop(selected.id, cropId, payload);
+    setMessage('Cultivo actualizado');
+    await refresh();
+  }
+
+  async function handleAddSensor(event) {
+    event.preventDefault();
+    if (!selected) return;
+    await addSensor(selected.id, {
+      ...sensorForm,
+      minThreshold: Number(sensorForm.minThreshold),
+      maxThreshold: Number(sensorForm.maxThreshold)
+    });
+    setMessage('Sensor agregado');
+    setSensorForm(emptySensor);
+    await refresh();
+  }
+
+  async function handleUpdateSensor(sensorId, payload) {
+    if (!selected) return;
+    await updateSensor(selected.id, sensorId, {
+      ...payload,
+      minThreshold: Number(payload.minThreshold),
+      maxThreshold: Number(payload.maxThreshold)
+    });
+    setMessage('Sensor actualizado');
+    await refresh();
+  }
+
+  async function handleAddIrrigation(event) {
+    event.preventDefault();
+    if (!selected) return;
+    await addIrrigation(selected.id, {
+      ...irrigationForm,
+      durationMinutes: Number(irrigationForm.durationMinutes),
+      waterLiters: Number(irrigationForm.waterLiters)
+    });
+    setMessage('Riego registrado');
+    setIrrigationForm(emptyIrrigation);
+    await refresh();
+  }
+
+  async function handleUpdateIrrigation(eventId, payload) {
+    if (!selected) return;
+    await updateIrrigation(selected.id, eventId, {
+      ...payload,
+      durationMinutes: Number(payload.durationMinutes),
+      waterLiters: Number(payload.waterLiters)
+    });
+    setMessage('Riego actualizado');
+    await refresh();
+  }
+
+  async function handleResolveAlert(alertId) {
+    await resolveAlert(alertId);
+    setMessage('Alerta resuelta');
+    await refresh();
+  }
+
+  async function handleCreateUser(event) {
+    event.preventDefault();
+    const created = await createUser(userForm);
+    setMessage(`Usuario creado: ${created.email}`);
+    setUserForm(emptyUser);
+    await refresh();
+  }
+
+  async function handleChangeRole(userId, role) {
+    const updated = await updateUserRole(userId, role);
+    setMessage(`Rol actualizado: ${updated.email}`);
+    await refresh();
+  }
+
+  function exportJson() {
+    const payload = JSON.stringify({ greenhouses, alerts }, null, 2);
+    const blob = new Blob([payload], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'modelo-invernadero-exportado.json';
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  if (!session) {
+    return (
+      <LoginScreen
+        language={language}
+        setLanguage={setLanguage}
+        t={t}
+        onLogin={handleLogin}
+        onGoogleLogin={handleGoogleLogin}
+        error={loginError}
+      />
+    );
+  }
+
+  return (
+    <main className="appShell">
+      <aside className="sidebar">
+        <SidebarBrand t={t} />
+        <Navbar sections={sections} activeSection={activeSection} onChange={setActiveSection} alertsCount={alerts.length} />
+        <span className="versionBadge">Version 2.1.0</span>
+      </aside>
+      <section className="mainArea">
+        <AppHeader language={language} setLanguage={setLanguage} session={session} t={t} onLogout={handleLogout} />
+        {message && <p className="toast" role="status">{message}</p>}
+
+      {activeSection === 'dashboard' && (
+        <DashboardSection
+          totals={totals}
+          selected={selected}
+          alerts={alerts}
+          dashboard={dashboard}
+          readings={readings}
+          sensors={allSensors}
+          t={t}
+          openAlerts={() => setActiveSection('alerts')}
+        />
+      )}
+
+      {activeSection === 'greenhouses' && (
+        <GreenhousesSection
+          form={greenhouseForm}
+          setForm={setGreenhouseForm}
+          onSubmit={handleCreateGreenhouse}
+          editForm={greenhouseEditForm}
+          setEditForm={setGreenhouseEditForm}
+          onUpdate={handleUpdateGreenhouse}
+          onDelete={handleDeleteGreenhouse}
+          greenhouses={greenhouses}
+          selected={selected}
+          setSelectedId={handleSelectGreenhouse}
+          t={t}
+        />
+      )}
+
+      {activeSection === 'zones' && (
+        <CrudSection title={t.zones} formTitle={t.createZone} items={zones} emptyItem={{ name: '', description: '', active: true, greenhouseId: greenhouses[0]?.id ?? '' }} fields={zoneFields(t, greenhouses)} columns={[{ key: 'name', label: t.name }, { key: 'greenhouseName', label: t.greenhouses }, { key: 'active', label: t.status, render: (item) => item.active ? t.active : t.inactive }]} onCreate={async (payload) => { await createZone(payload); await refresh(); }} onUpdate={async (id, payload) => { await updateZone(id, payload); await refresh(); }} onDelete={async (item) => { await deleteZone(item.id); await refresh(); }} t={t} />
+      )}
+
+      {activeSection === 'sensors' && (
+        <CrudSection title={t.sensors} formTitle={t.addSensor} items={allSensors} emptyItem={{ code: '', type: 'TEMPERATURE', unit: 'C', minThreshold: 0, maxThreshold: 100 }} fields={sensorFields(t)} columns={[{ key: 'code', label: t.sensorCode }, { key: 'type', label: t.sensorType }, { key: 'greenhouseName', label: t.greenhouses }, { key: 'unit', label: t.unit }]} onCreate={async (payload) => { await addSensor(greenhouses[0]?.id, payload); await refresh(); }} onUpdate={async (id, payload) => { await updateSensorRecord(id, payload); await refresh(); }} onDelete={async (item) => { await deleteSensor(item.id); await refresh(); }} t={t} />
+      )}
+
+      {activeSection === 'readings' && (
+        <CrudSection title={t.readings} formTitle={t.createReading} items={readings} emptyItem={{ sensorId: allSensors[0]?.id ?? '', value: '' }} fields={readingFields(t, allSensors)} columns={[{ key: 'sensorCode', label: t.sensorCode }, { key: 'value', label: t.value, render: (item) => `${item.value} ${item.unit}` }, { key: 'recordedAt', label: t.date }]} onCreate={async (payload) => { await createReading(payload); await refresh(); }} onUpdate={async (id, payload) => { await updateReading(id, payload); await refresh(); }} onDelete={async (item) => { await deleteReading(item.id); await refresh(); }} t={t} />
+      )}
+
+      {activeSection === 'actuators' && (
+        <CrudSection title={t.actuators} formTitle={t.createActuator} items={actuators} emptyItem={{ name: '', type: 'IRRIGATION', enabled: false, active: true, greenhouseId: greenhouses[0]?.id ?? '' }} fields={actuatorFields(t, greenhouses)} columns={[{ key: 'name', label: t.name }, { key: 'type', label: t.type }, { key: 'enabled', label: t.status, render: (item) => item.enabled ? t.enabled : t.disabled }]} onCreate={async (payload) => { await createActuator(payload); await refresh(); }} onUpdate={async (id, payload) => { await updateActuator(id, payload); await refresh(); }} onDelete={async (item) => { await deleteActuator(item.id); await refresh(); }} t={t} />
+      )}
+
+      {activeSection === 'rules' && (
+        <CrudSection title={t.rules} formTitle={t.createRule} items={rules} emptyItem={{ name: 'Humedad baja activa riego', type: 'LOW_HUMIDITY_IRRIGATION', threshold: 45, enabled: true, greenhouseId: greenhouses[0]?.id ?? '' }} fields={ruleFields(t, greenhouses)} columns={[{ key: 'name', label: t.name }, { key: 'threshold', label: t.threshold }, { key: 'enabled', label: t.status, render: (item) => item.enabled ? t.active : t.inactive }]} onCreate={async (payload) => { await createRule(payload); await refresh(); }} onUpdate={async (id, payload) => { await updateRule(id, payload); await refresh(); }} onDelete={async (item) => { await deleteRule(item.id); await refresh(); }} t={t} />
+      )}
+
+      {activeSection === 'operations' && (
+        <OperationsSection
+          greenhouses={greenhouses}
+          selected={selected}
+          setSelectedId={setSelectedId}
+          cropForm={cropForm}
+          setCropForm={setCropForm}
+          sensorForm={sensorForm}
+          setSensorForm={setSensorForm}
+          irrigationForm={irrigationForm}
+          setIrrigationForm={setIrrigationForm}
+          onAddCrop={handleAddCrop}
+          onAddSensor={handleAddSensor}
+          onAddIrrigation={handleAddIrrigation}
+          onUpdateCrop={handleUpdateCrop}
+          onUpdateSensor={handleUpdateSensor}
+          onUpdateIrrigation={handleUpdateIrrigation}
+          t={t}
+        />
+      )}
+
+      {activeSection === 'alerts' && <AlertsSection alerts={alerts} onResolve={handleResolveAlert} t={t} />}
+      {activeSection === 'logs' && (
+        <CrudSection title={t.auditLog} formTitle={t.auditLog} items={logs} emptyItem={{}} fields={[]} columns={[{ key: 'action', label: t.action }, { key: 'origin', label: t.origin }, { key: 'detail', label: t.detail }, { key: 'createdAt', label: t.date }]} onCreate={async () => {}} onUpdate={async () => {}} onDelete={async () => {}} deleteLabel={t.noAction} t={t} />
+      )}
+      {activeSection === 'users' && (
+        <UsersSection
+          users={users}
+          form={userForm}
+          setForm={setUserForm}
+          onCreateUser={handleCreateUser}
+          onChangeRole={handleChangeRole}
+          t={t}
+        />
+      )}
+      {activeSection === 'data' && <DataSection onExport={exportJson} t={t} />}
+      {activeSection === 'manual' && <ManualSection t={t} />}
+      </section>
+    </main>
+  );
+}
+
+function useStoredSession() {
+  return useState(() => {
+    const saved = localStorage.getItem('greenhouse-session');
+    return saved ? JSON.parse(saved) : null;
+  });
+}
+
+function clearOAuthQuery() {
+  window.history.replaceState({}, '', window.location.pathname);
+}
+
+function greenhouseOptions(greenhouses) {
+  return greenhouses.map((greenhouse) => ({ value: greenhouse.id, label: greenhouse.name }));
+}
+
+function pickDefaultGreenhouseId(greenhouses, sensors, readings) {
+  const sensorById = new Map(sensors.map((sensor) => [sensor.id, sensor]));
+  const latestReading = readings
+    .slice()
+    .sort((a, b) => new Date(a.recordedAt) - new Date(b.recordedAt))
+    .at(-1);
+  const greenhouseId = latestReading ? sensorById.get(latestReading.sensorId)?.greenhouseId : null;
+  if (greenhouses.some((greenhouse) => greenhouse.id === greenhouseId)) return greenhouseId;
+  return greenhouses.find((greenhouse) => greenhouse.active)?.id ?? greenhouses[0]?.id ?? null;
+}
+
+function zoneFields(t, greenhouses) {
+  return [
+    { name: 'name', placeholder: t.name, required: true },
+    { name: 'description', placeholder: t.detail },
+    { name: 'greenhouseId', placeholder: t.greenhouses, type: 'select', required: true, options: greenhouseOptions(greenhouses), parse: Number },
+    { name: 'active', placeholder: t.active, type: 'checkbox' }
+  ];
+}
+
+function sensorFields(t) {
+  return [
+    { name: 'code', placeholder: t.sensorCode, required: true },
+    { name: 'type', placeholder: t.sensorType, type: 'select', required: true, options: ['TEMPERATURE', 'HUMIDITY', 'SOIL_MOISTURE', 'LIGHT'].map((value) => ({ value, label: value })) },
+    { name: 'unit', placeholder: t.unit, required: true },
+    { name: 'minThreshold', placeholder: 'Min', type: 'number', parse: Number },
+    { name: 'maxThreshold', placeholder: 'Max', type: 'number', parse: Number }
+  ];
+}
+
+function readingFields(t, sensors) {
+  return [
+    { name: 'sensorId', placeholder: t.sensors, type: 'select', required: true, options: sensors.map((sensor) => ({ value: sensor.id, label: sensor.code })), parse: Number },
+    { name: 'value', placeholder: t.value, type: 'number', required: true, parse: Number }
+  ];
+}
+
+function actuatorFields(t, greenhouses) {
+  return [
+    { name: 'name', placeholder: t.name, required: true },
+    { name: 'type', placeholder: t.type, type: 'select', required: true, options: ['IRRIGATION', 'FAN', 'HEATER', 'LIGHT'].map((value) => ({ value, label: value })) },
+    { name: 'greenhouseId', placeholder: t.greenhouses, type: 'select', required: true, options: greenhouseOptions(greenhouses), parse: Number },
+    { name: 'enabled', placeholder: t.enabled, type: 'checkbox' },
+    { name: 'active', placeholder: t.active, type: 'checkbox' }
+  ];
+}
+
+function ruleFields(t, greenhouses) {
+  return [
+    { name: 'name', placeholder: t.name, required: true },
+    { name: 'type', placeholder: t.type, type: 'select', required: true, options: [{ value: 'LOW_HUMIDITY_IRRIGATION', label: t.lowHumidityRule }] },
+    { name: 'threshold', placeholder: t.threshold, type: 'number', required: true, parse: Number },
+    { name: 'greenhouseId', placeholder: t.greenhouses, type: 'select', required: true, options: greenhouseOptions(greenhouses), parse: Number },
+    { name: 'enabled', placeholder: t.enabled, type: 'checkbox' }
+  ];
+}

@@ -1,0 +1,65 @@
+{
+  "greenhouses": [
+    {
+      "id": 1,
+      "name": "Invernadero Norte",
+      "location": "Campus principal",
+      "areaSquareMeters": 120.5,
+      "active": true,
+      "crops": [
+        {
+          "id": 1,
+          "name": "Tomate chonto",
+          "variety": "Santa Clara",
+          "plantedAt": "2026-05-01",
+          "expectedHarvestAt": "2026-08-15",
+          "status": "GERMINATING"
+        }
+      ],
+      "sensors": [
+        {
+          "id": 1,
+          "code": "TEMP-001",
+          "type": "TEMPERATURE",
+          "unit": "C",
+          "minThreshold": 18,
+          "maxThreshold": 30,
+          "readings": [
+            {
+              "id": 1,
+              "value": 24.7,
+              "recordedAt": "2026-05-07T20:00:00"
+            }
+          ]
+        }
+      ],
+      "irrigationEvents": [
+        {
+          "id": 1,
+          "startedAt": "2026-05-07T06:00:00",
+          "durationMinutes": 18,
+          "waterLiters": 32.4,
+          "mode": "AUTOMATIC"
+        }
+      ]
+    }
+  ],
+  "alerts": [
+    {
+      "id": 1,
+      "severity": "WARNING",
+      "message": "Temperatura por encima del umbral",
+      "resolved": false,
+      "createdAt": "2026-05-07T20:01:00",
+      "sensorId": 1
+    }
+  ],
+  "users": [
+    {
+      "id": 1,
+      "email": "admin@greenhouse.local",
+      "fullName": "Administrador",
+      "role": "ADMIN"
+    }
+  ]
+}

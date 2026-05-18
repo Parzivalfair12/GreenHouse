@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: greenhouse-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/greenhouse}
+    username: ${DB_USERNAME:greenhouse_user}
+    password: ${DB_PASSWORD:greenhouse_pass}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope: openid,email,profile
+
+app:
+  frontend-url: ${FRONTEND_URL:http://localhost:5173}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

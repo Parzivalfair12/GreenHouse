@@ -1,0 +1,26 @@
+{
+  "name": "greenhouse-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:selenium": "node test/selenium/dashboard.test.js"
+  },
+  "dependencies": {
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vite": "^8.0.11"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.0.1",
+    "jsdom": "^25.0.1",
+    "selenium-webdriver": "^4.26.0",
+    "vitest": "^4.1.5"
+  }
+}
