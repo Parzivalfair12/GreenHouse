@@ -19,19 +19,80 @@ Software academico para administrar un invernadero con backend Spring Boot, fron
 
 ## Ejecucion
 
+### 1. Base de datos
+
+Opcion recomendada con Docker:
+
 ```bash
 docker compose up -d
 ```
 
-```bash
+Esto crea automaticamente:
+
+```text
+Database: greenhouse
+User: greenhouse_user
+Password: greenhouse_pass
+Port: 5432
+```
+
+Opcion manual con pgAdmin o psql:
+
+1. Conectate como usuario administrador de PostgreSQL, por ejemplo `postgres`.
+2. Ejecuta el script:
+
+```text
+docs/create-database.sql
+```
+
+El backend crea/actualiza las tablas automaticamente con Hibernate usando `spring.jpa.hibernate.ddl-auto=update`.
+
+### 2. Backend
+
+PowerShell:
+
+```powershell
 cd backend
+$env:JAVA_HOME='C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot'
+$env:Path="$env:JAVA_HOME\bin;C:\Users\andre\Tools\apache-maven-3.9.15\bin;$env:Path"
+$env:GOOGLE_CLIENT_ID='demo-client'
+$env:GOOGLE_CLIENT_SECRET='demo-secret'
 mvn spring-boot:run
 ```
+
+Bash:
+
+```bash
+cd backend
+export GOOGLE_CLIENT_ID=demo-client
+export GOOGLE_CLIENT_SECRET=demo-secret
+mvn spring-boot:run
+```
+
+El backend queda disponible en:
+
+```text
+http://localhost:8080
+```
+
+Swagger:
+
+```text
+http://localhost:8080/swagger-ui.html
+```
+
+### 3. Frontend
 
 ```bash
 cd frontend
 npm install
-npm run dev
+npm run dev -- --port 5173
+```
+
+El frontend queda disponible en:
+
+```text
+http://localhost:5173
 ```
 
 ## OAuth2
@@ -77,6 +138,12 @@ Para levantar la base:
 
 ```bash
 docker compose up -d
+```
+
+Tambien existe el script manual:
+
+```text
+docs/create-database.sql
 ```
 
 Las pruebas JUnit usan H2 con el perfil `test`, asi no dependen de Docker.
