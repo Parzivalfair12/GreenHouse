@@ -22,6 +22,7 @@ class GreenhouseControllerTest {
   MockMvc mvc;
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   void listsSeededGreenhouses() throws Exception {
     mvc.perform(get("/api/greenhouses"))
         .andExpect(status().isOk())
@@ -67,8 +68,8 @@ class GreenhouseControllerTest {
   }
 
   @Test
-  void unauthenticatedRequestFails() throws Exception {
+  void unauthenticatedRequestRedirectsToOAuth() throws Exception {
     mvc.perform(get("/api/greenhouses"))
-        .andExpect(status().isOk());
+        .andExpect(status().is3xxRedirection());
   }
 }

@@ -52,7 +52,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.DELETE, "/api/greenhouses/**").hasRole("ADMIN")
 
             // Operator y Admin pueden resolver alertas
-            .requestMatchers("/api/alerts/**/resolve").hasAnyRole("ADMIN", "OPERATOR")
+            .requestMatchers("/api/alerts/*/resolve").hasAnyRole("ADMIN", "OPERATOR")
 
             // Todos los autenticados pueden leer
             .requestMatchers(HttpMethod.GET, "/api/**").authenticated()

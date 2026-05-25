@@ -1,6 +1,7 @@
 package com.example.greenhouse.web;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -49,23 +50,23 @@ class SecurityConfigTest {
   @Test
   @WithMockUser(roles = "OPERATOR")
   void operatorCanResolveAlerts() throws Exception {
-    mvc.perform(post("/api/alerts/999/resolve")
+    mvc.perform(patch("/api/alerts/999/resolve")
             .contentType(MediaType.APPLICATION_JSON))
-        .andExpect(status().isNotFound());
+        .andExpect(status().isBadRequest());
   }
 
   @Test
   @WithMockUser(roles = "ADMIN")
   void adminCanResolveAlerts() throws Exception {
-    mvc.perform(post("/api/alerts/999/resolve")
+    mvc.perform(patch("/api/alerts/999/resolve")
             .contentType(MediaType.APPLICATION_JSON))
-        .andExpect(status().isNotFound());
+        .andExpect(status().isBadRequest());
   }
 
   @Test
   @WithMockUser(roles = "VIEWER")
   void viewerCannotResolveAlerts() throws Exception {
-    mvc.perform(post("/api/alerts/999/resolve")
+    mvc.perform(patch("/api/alerts/999/resolve")
             .contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isForbidden());
   }

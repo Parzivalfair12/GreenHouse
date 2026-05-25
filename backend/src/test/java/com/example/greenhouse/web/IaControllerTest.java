@@ -40,7 +40,7 @@ class IaControllerTest {
   @Test
   void unauthenticatedUserCannotAccessIa() throws Exception {
     mvc.perform(get("/api/ia/health"))
-        .andExpect(status().isOk());
+        .andExpect(status().is3xxRedirection());
   }
 
   @Test
