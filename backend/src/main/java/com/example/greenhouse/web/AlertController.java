@@ -6,6 +6,7 @@ import com.example.greenhouse.web.dto.MessageResponse;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.context.MessageSource;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,11 +26,13 @@ public class AlertController {
   }
 
   @GetMapping("/open")
+  @PreAuthorize("isAuthenticated()")
   public List<AlertResponse> findOpenAlerts() {
     return service.findOpenAlerts().stream().map(AlertResponse::from).toList();
   }
 
   @PatchMapping("/{id}/resolve")
+  @PreAuthorize("hasAnyRole('ADMIN', 'OPERATOR')")
   public MessageResponse resolve(@PathVariable long id, Locale locale) {
     service.resolve(id);
     return new MessageResponse(messages.getMessage("alert.resolved", null, locale));

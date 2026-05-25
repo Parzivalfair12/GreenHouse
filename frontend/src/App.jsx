@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, Bell, BookOpen, CircleHelp, Cpu, Database, LayoutDashboard, ListChecks, Map as MapIcon, Radio, Users, Warehouse } from 'lucide-react';
+import { Activity, Bell, BookOpen, CircleHelp, Cpu, Database, LayoutDashboard, ListChecks, Map as MapIcon, Moon, Radio, Sun, Users, Warehouse } from 'lucide-react';
+import { ToastContainer, showToast } from './components/Toast.jsx';
+import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import {
   addCrop,
   addIrrigation,
@@ -39,7 +41,10 @@ import {
   createRule,
   updateRule,
   deleteRule,
-  fetchAuditLogs
+  fetchAuditLogs,
+  setOnUnauthorized,
+  clearStoredSession,
+  getStoredSession
 } from './api.js';
 import { AlertsSection } from './components/AlertsSection.jsx';
 import { AppHeader, SidebarBrand } from './components/AppHeader.jsx';
@@ -62,9 +67,16 @@ const emptyIrrigation = { durationMinutes: 10, waterLiters: 20, mode: 'MANUAL' }
 const emptyUser = { fullName: '', email: '', password: '', role: 'VIEWER' };
 
 export function App() {
+  const [theme, setTheme] = useState(() => localStorage.getItem('greenhouse-theme') ?? 'dark');
   const [language, setLanguage] = useState('es');
   const [session, setSession] = useStoredSession();
   const [activeSection, setActiveSection] = useState('dashboard');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('greenhouse-theme', theme);
+  }, [theme]);
+
   const [greenhouses, setGreenhouses] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [users, setUsers] = useState([]);
@@ -82,9 +94,12 @@ export function App() {
   const [sensorForm, setSensorForm] = useState(emptySensor);
   const [irrigationForm, setIrrigationForm] = useState(emptyIrrigation);
   const [userForm, setUserForm] = useState(emptyUser);
-  const [message, setMessage] = useState('');
   const [loginError, setLoginError] = useState('');
   const t = dictionary[language];
+
+  function toggleTheme() {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  }
 
   async function refresh() {
     const [greenhouseData, alertData, userData, dashboardData, zoneData, sensorData, readingData, actuatorData, ruleData, logData] = await Promise.all([
@@ -117,6 +132,14 @@ export function App() {
 
   useEffect(() => {
     refresh();
+  }, []);
+
+  useEffect(() => {
+    setOnUnauthorized(() => {
+      clearStoredSession();
+      setSession(null);
+    });
+    return () => setOnUnauthorized(null);
   }, []);
 
   useEffect(() => {
@@ -190,7 +213,7 @@ export function App() {
   }
 
   function handleLogout() {
-    localStorage.removeItem('greenhouse-session');
+    clearStoredSession();
     setSession(null);
   }
 
@@ -200,7 +223,7 @@ export function App() {
       ...greenhouseForm,
       areaSquareMeters: Number(greenhouseForm.areaSquareMeters)
     });
-    setMessage(`Invernadero creado: ${created.name}`);
+    showToast(`Invernadero creado: ${created.name}`);
     setGreenhouseForm(emptyGreenhouse);
     await refresh();
     setSelectedId(created.id);
@@ -214,14 +237,14 @@ export function App() {
       ...greenhouseEditForm,
       areaSquareMeters: Number(greenhouseEditForm.areaSquareMeters)
     });
-    setMessage(`Invernadero actualizado: ${updated.name}`);
+    showToast(`Invernadero actualizado: ${updated.name}`);
     await refresh();
   }
 
   async function handleDeleteGreenhouse() {
     if (!selected) return;
     await deleteGreenhouse(selected.id);
-    setMessage(`Invernadero eliminado: ${selected.name}`);
+    showToast(`Invernadero eliminado: ${selected.name}`);
     await refresh();
   }
 
@@ -242,7 +265,7 @@ export function App() {
     event.preventDefault();
     if (!selected) return;
     await addCrop(selected.id, cropForm);
-    setMessage('Cultivo agregado');
+    showToast('Cultivo agregado');
     setCropForm(emptyCrop);
     await refresh();
   }
@@ -250,7 +273,7 @@ export function App() {
   async function handleUpdateCrop(cropId, payload) {
     if (!selected) return;
     await updateCrop(selected.id, cropId, payload);
-    setMessage('Cultivo actualizado');
+    showToast('Cultivo actualizado');
     await refresh();
   }
 
@@ -262,7 +285,7 @@ export function App() {
       minThreshold: Number(sensorForm.minThreshold),
       maxThreshold: Number(sensorForm.maxThreshold)
     });
-    setMessage('Sensor agregado');
+    showToast('Sensor agregado');
     setSensorForm(emptySensor);
     await refresh();
   }
@@ -274,7 +297,7 @@ export function App() {
       minThreshold: Number(payload.minThreshold),
       maxThreshold: Number(payload.maxThreshold)
     });
-    setMessage('Sensor actualizado');
+    showToast('Sensor actualizado');
     await refresh();
   }
 
@@ -286,7 +309,7 @@ export function App() {
       durationMinutes: Number(irrigationForm.durationMinutes),
       waterLiters: Number(irrigationForm.waterLiters)
     });
-    setMessage('Riego registrado');
+    showToast('Riego registrado');
     setIrrigationForm(emptyIrrigation);
     await refresh();
   }
@@ -298,27 +321,27 @@ export function App() {
       durationMinutes: Number(payload.durationMinutes),
       waterLiters: Number(payload.waterLiters)
     });
-    setMessage('Riego actualizado');
+    showToast('Riego actualizado');
     await refresh();
   }
 
   async function handleResolveAlert(alertId) {
     await resolveAlert(alertId);
-    setMessage('Alerta resuelta');
+    showToast('Alerta resuelta');
     await refresh();
   }
 
   async function handleCreateUser(event) {
     event.preventDefault();
     const created = await createUser(userForm);
-    setMessage(`Usuario creado: ${created.email}`);
+    showToast(`Usuario creado: ${created.email}`);
     setUserForm(emptyUser);
     await refresh();
   }
 
   async function handleChangeRole(userId, role) {
     const updated = await updateUserRole(userId, role);
-    setMessage(`Rol actualizado: ${updated.email}`);
+    showToast(`Rol actualizado: ${updated.email}`);
     await refresh();
   }
 
@@ -335,27 +358,35 @@ export function App() {
 
   if (!session) {
     return (
-      <LoginScreen
-        language={language}
-        setLanguage={setLanguage}
-        t={t}
-        onLogin={handleLogin}
-        onGoogleLogin={handleGoogleLogin}
-        error={loginError}
-      />
+      <div className={`theme-${theme}`}>
+        <LoginScreen
+          language={language}
+          setLanguage={setLanguage}
+          t={t}
+          onLogin={handleLogin}
+          onGoogleLogin={handleGoogleLogin}
+          error={loginError}
+        />
+      </div>
     );
   }
 
   return (
-    <main className="appShell">
+    <ErrorBoundary t={t}>
+    <main className={`appShell theme-${theme}`}>
       <aside className="sidebar">
         <SidebarBrand t={t} />
         <Navbar sections={sections} activeSection={activeSection} onChange={setActiveSection} alertsCount={alerts.length} />
-        <span className="versionBadge">Version 2.1.0</span>
+        <div className="sidebarFooter">
+          <button className="themeToggle" type="button" onClick={toggleTheme} aria-label="Cambiar tema">
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+          <span className="versionBadge">Version 2.1.0</span>
+        </div>
       </aside>
       <section className="mainArea">
-        <AppHeader language={language} setLanguage={setLanguage} session={session} t={t} onLogout={handleLogout} />
-        {message && <p className="toast" role="status">{message}</p>}
+        <AppHeader language={language} setLanguage={setLanguage} session={session} t={t} onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme} />
+        <ToastContainer />
 
       {activeSection === 'dashboard' && (
         <DashboardSection
@@ -445,14 +476,12 @@ export function App() {
       {activeSection === 'manual' && <ManualSection t={t} />}
       </section>
     </main>
+    </ErrorBoundary>
   );
 }
 
 function useStoredSession() {
-  return useState(() => {
-    const saved = localStorage.getItem('greenhouse-session');
-    return saved ? JSON.parse(saved) : null;
-  });
+  return useState(getStoredSession);
 }
 
 function clearOAuthQuery() {

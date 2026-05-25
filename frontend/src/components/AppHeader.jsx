@@ -1,10 +1,13 @@
-import { Bell, ChevronDown, Database, Globe2, Leaf, UserRound } from 'lucide-react';
+import { Bell, ChevronDown, Database, Globe2, Leaf, Moon, Sun, UserRound } from 'lucide-react';
 
-export function AppHeader({ language, setLanguage, session, t, onLogout }) {
+export function AppHeader({ language, setLanguage, session, t, onLogout, theme, onToggleTheme }) {
   return (
     <header className="hero">
       <span className="statusDot"><Database size={16} />{t.apiConnected}</span>
       <div className="headerTools">
+        <button className="themeToggle" type="button" onClick={onToggleTheme} aria-label={t.language}>
+          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
         <label className="language">
           <Globe2 size={18} aria-hidden="true" />
           <span>{t.language}</span>

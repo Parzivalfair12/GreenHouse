@@ -1,3 +1,5 @@
+const STORAGE_KEY = 'greenhouse-session';
+
 const fallbackGreenhouses = [
   {
     id: 1,
@@ -23,25 +25,92 @@ const fallbackAlerts = [
   }
 ];
 
-export async function fetchGreenhouses() {
-  try {
-    const response = await fetch('/api/greenhouses', { headers: { 'Accept-Language': 'es' } });
-    if (!response.ok) throw new Error('API unavailable');
-    return response.json();
-  } catch {
-    return fallbackGreenhouses;
-  }
-}
+// --- Session management (centralizado) ---
 
-export async function fetchDashboard() {
+export function getStoredSession() {
   try {
-    const response = await fetch('/api/dashboard', { headers: { 'Accept-Language': 'es' } });
-    if (!response.ok) throw new Error('API unavailable');
-    return response.json();
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved ? JSON.parse(saved) : null;
   } catch {
     return null;
   }
 }
+
+export function clearStoredSession() {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
+let onUnauthorizedCallback = null;
+
+export function setOnUnauthorized(callback) {
+  onUnauthorizedCallback = callback;
+}
+
+function triggerUnauthorized() {
+  clearStoredSession();
+  if (onUnauthorizedCallback) {
+    onUnauthorizedCallback();
+  }
+}
+
+// --- Auth header builder (centralizado) ---
+
+function authHeaders(extra = {}) {
+  const session = getStoredSession();
+  if (session?.token) {
+    extra['Authorization'] = `Bearer ${session.token}`;
+  }
+  if (!extra['Accept-Language']) {
+    extra['Accept-Language'] = 'es';
+  }
+  return extra;
+}
+
+// --- HTTP helpers (centralizados, con auth automático) ---
+
+async function sendJson(path, method, body) {
+  const response = await fetch(path, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders()
+    },
+    body: JSON.stringify(body)
+  });
+  if (response.status === 401 || response.status === 403) {
+    triggerUnauthorized();
+    throw new Error(`Request failed: ${response.status}`);
+  }
+  if (!response.ok) {
+    throw new Error(`Request failed: ${response.status}`);
+  }
+  return response.json();
+}
+
+async function fetchJson(path, fallback) {
+  try {
+    const response = await fetch(path, { headers: authHeaders() });
+    if (response.status === 401 || response.status === 403) {
+      triggerUnauthorized();
+      throw new Error(`Session expired: ${response.status}`);
+    }
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+    return response.json();
+  } catch {
+    return fallback;
+  }
+}
+
+async function deleteJson(path) {
+  const response = await fetch(path, { method: 'DELETE', headers: authHeaders() });
+  if (response.status === 401 || response.status === 403) {
+    triggerUnauthorized();
+    throw new Error(`Session expired: ${response.status}`);
+  }
+  if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+}
+
+// --- Public API ---
 
 export function loginWithEmail(payload) {
   return sendJson('/api/auth/login', 'POST', payload);
@@ -54,7 +123,7 @@ export function beginGoogleOAuth() {
 export async function fetchCurrentOAuthUser() {
   const response = await fetch('/api/auth/me', {
     credentials: 'include',
-    headers: { 'Accept-Language': 'es' }
+    headers: authHeaders()
   });
   if (!response.ok) {
     throw new Error(`Request failed: ${response.status}`);
@@ -62,26 +131,22 @@ export async function fetchCurrentOAuthUser() {
   return response.json();
 }
 
-export async function fetchAlerts() {
-  try {
-    const response = await fetch('/api/alerts/open', { headers: { 'Accept-Language': 'es' } });
-    if (!response.ok) throw new Error('API unavailable');
-    return response.json();
-  } catch {
-    return fallbackAlerts;
-  }
+export function fetchGreenhouses() {
+  return fetchJson('/api/greenhouses', fallbackGreenhouses);
 }
 
-export async function fetchUsers() {
-  try {
-    const response = await fetch('/api/users', { headers: { 'Accept-Language': 'es' } });
-    if (!response.ok) throw new Error('API unavailable');
-    return response.json();
-  } catch {
-    return [
-      { id: 1, email: 'admin@greenhouse.local', fullName: 'Administrador', role: 'ADMIN', provider: 'email' }
-    ];
-  }
+export function fetchDashboard() {
+  return fetchJson('/api/dashboard', null);
+}
+
+export function fetchAlerts() {
+  return fetchJson('/api/alerts/open', fallbackAlerts);
+}
+
+export function fetchUsers() {
+  return fetchJson('/api/users', [
+    { id: 1, email: 'admin@greenhouse.local', fullName: 'Administrador', role: 'ADMIN', provider: 'email' }
+  ]);
 }
 
 export function fetchZones() {
@@ -106,36 +171,6 @@ export function fetchRules() {
 
 export function fetchAuditLogs() {
   return fetchJson('/api/audit-logs', []);
-}
-
-async function sendJson(path, method, body) {
-  const response = await fetch(path, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept-Language': 'es'
-    },
-    body: JSON.stringify(body)
-  });
-  if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
-  }
-  return response.json();
-}
-
-async function fetchJson(path, fallback) {
-  try {
-    const response = await fetch(path, { headers: { 'Accept-Language': 'es' } });
-    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-    return response.json();
-  } catch {
-    return fallback;
-  }
-}
-
-async function deleteJson(path) {
-  const response = await fetch(path, { method: 'DELETE', headers: { 'Accept-Language': 'es' } });
-  if (!response.ok) throw new Error(`Request failed: ${response.status}`);
 }
 
 export function createGreenhouse(payload) {
@@ -241,8 +276,12 @@ export function updateUserRole(userId, role) {
 export async function resolveAlert(alertId) {
   const response = await fetch(`/api/alerts/${alertId}/resolve`, {
     method: 'PATCH',
-    headers: { 'Accept-Language': 'es' }
+    headers: authHeaders()
   });
+  if (response.status === 401 || response.status === 403) {
+    triggerUnauthorized();
+    throw new Error(`Session expired: ${response.status}`);
+  }
   if (!response.ok) {
     throw new Error(`Request failed: ${response.status}`);
   }

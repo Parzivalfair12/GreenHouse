@@ -7,7 +7,10 @@ import com.example.greenhouse.web.dto.UserResponse;
 import com.example.greenhouse.web.dto.UserRoleUpdateRequest;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Locale;
+import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -24,13 +27,16 @@ import org.springframework.web.server.ResponseStatusException;
 public class UserController {
   private final AppUserRepository users;
   private final PasswordEncoder passwordEncoder;
+  private final MessageSource messages;
 
-  public UserController(AppUserRepository users, PasswordEncoder passwordEncoder) {
+  public UserController(AppUserRepository users, PasswordEncoder passwordEncoder, MessageSource messages) {
     this.users = users;
     this.passwordEncoder = passwordEncoder;
+    this.messages = messages;
   }
 
   @GetMapping
+  @PreAuthorize("hasRole('ADMIN')")
   public List<UserResponse> list() {
     return users.findAll().stream()
         .map(UserResponse::from)
@@ -38,9 +44,10 @@ public class UserController {
   }
 
   @PostMapping
-  public UserResponse create(@Valid @RequestBody UserCreateRequest request) {
+  @PreAuthorize("hasRole('ADMIN')")
+  public UserResponse create(@Valid @RequestBody UserCreateRequest request, Locale locale) {
     users.findByEmail(request.email()).ifPresent(existing -> {
-      throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
+      throw new ResponseStatusException(HttpStatus.CONFLICT, messages.getMessage("user.email.exists", null, locale));
     });
 
     AppUser user = new AppUser();
@@ -53,9 +60,12 @@ public class UserController {
   }
 
   @PatchMapping("/{id}/role")
-  public UserResponse updateRole(@PathVariable Long id, @Valid @RequestBody UserRoleUpdateRequest request) {
+  @PreAuthorize("hasRole('ADMIN')")
+  public UserResponse updateRole(@PathVariable Long id, @Valid @RequestBody UserRoleUpdateRequest request,
+      Locale locale) {
     AppUser user = users.findById(id)
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+            messages.getMessage("user.not.found", null, locale)));
     user.role = request.role();
     return UserResponse.from(users.save(user));
   }

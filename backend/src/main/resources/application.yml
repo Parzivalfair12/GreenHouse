@@ -2,13 +2,17 @@ spring:
   application:
     name: greenhouse-api
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/greenhouse}
-    username: ${DB_USERNAME:greenhouse_user}
-    password: ${DB_PASSWORD:greenhouse_pass}
+    url: jdbc:postgresql://localhost:5432/greenhouse
+    username: postgres
+    password: daniel20
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     open-in-view: false
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
   security:
     oauth2:
       client:
@@ -20,6 +24,8 @@ spring:
 
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
+  jwt-secret: ${JWT_SECRET:mi_clave_secreta_para_desarrollo_12345678901234567890}
+  jwt-expiration-ms: 86400000
 
 springdoc:
   swagger-ui:
