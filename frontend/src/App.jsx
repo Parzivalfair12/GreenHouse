@@ -51,6 +51,7 @@ import { AppHeader, SidebarBrand } from './components/AppHeader.jsx';
 import { DashboardSection } from './components/DashboardSection.jsx';
 import { CrudSection } from './components/CrudSection.jsx';
 import { DataSection } from './components/DataSection.jsx';
+import { IaSection } from './components/IaSection.jsx';
 import { GreenhousesSection } from './components/GreenhousesSection.jsx';
 import { LoginScreen } from './components/LoginScreen.jsx';
 import { ManualSection } from './components/ManualSection.jsx';
@@ -146,13 +147,20 @@ export function App() {
     const params = new URLSearchParams(window.location.search);
     if (params.get('oauth') !== 'google') return;
 
-    if (params.get('status') === 'success') {
-      fetchCurrentOAuthUser()
-        .then(saveSession)
-        .catch(() => setLoginError(t.invalidLogin))
-        .finally(clearOAuthQuery);
-    } else {
+    if (params.get('status') === 'success' && params.get('token')) {
+      const session = {
+        token: params.get('token'),
+        email: params.get('email') ?? '',
+        fullName: params.get('email') ?? '',
+        roles: params.get('role') ? ['ROLE_' + params.get('role')] : [],
+        expiresIn: 86400
+      };
+      saveSession(session);
+      clearOAuthQuery();
+    } else if (params.get('status') === 'error') {
       setLoginError(params.get('message') ?? t.invalidLogin);
+      clearOAuthQuery();
+    } else {
       clearOAuthQuery();
     }
   }, [t.invalidLogin]);
@@ -186,6 +194,7 @@ export function App() {
     { id: 'rules', label: t.rules, icon: ListChecks },
     { id: 'operations', label: t.operations, icon: Activity },
     { id: 'alerts', label: t.alerts, icon: Bell },
+    { id: 'ia', label: 'IA', icon: Cpu },
     { id: 'logs', label: t.auditLog, icon: BookOpen },
     { id: 'users', label: t.users, icon: Users },
     { id: 'data', label: t.data, icon: Database },
@@ -459,6 +468,7 @@ export function App() {
       )}
 
       {activeSection === 'alerts' && <AlertsSection alerts={alerts} onResolve={handleResolveAlert} t={t} />}
+      {activeSection === 'ia' && <IaSection readings={readings} sensors={allSensors} t={t} />}
       {activeSection === 'logs' && (
         <CrudSection title={t.auditLog} formTitle={t.auditLog} items={logs} emptyItem={{}} fields={[]} columns={[{ key: 'action', label: t.action }, { key: 'origin', label: t.origin }, { key: 'detail', label: t.detail }, { key: 'createdAt', label: t.date }]} onCreate={async () => {}} onUpdate={async () => {}} onDelete={async () => {}} deleteLabel={t.noAction} t={t} />
       )}

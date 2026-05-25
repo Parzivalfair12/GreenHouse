@@ -1,5 +1,6 @@
 package com.example.greenhouse.config;
 
+import com.example.greenhouse.domain.AppUser;
 import com.example.greenhouse.service.AuthService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,10 +18,15 @@ import org.springframework.stereotype.Component;
 @Component
 public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
   private final AuthService authService;
+  private final JwtTokenProvider jwtTokenProvider;
   private final String frontendUrl;
 
-  public OAuth2LoginSuccessHandler(AuthService authService, @Value("${app.frontend-url}") String frontendUrl) {
+  public OAuth2LoginSuccessHandler(
+      AuthService authService,
+      JwtTokenProvider jwtTokenProvider,
+      @Value("${app.frontend-url}") String frontendUrl) {
     this.authService = authService;
+    this.jwtTokenProvider = jwtTokenProvider;
     this.frontendUrl = frontendUrl;
   }
 
@@ -28,12 +34,20 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
   public void onAuthenticationSuccess(
       HttpServletRequest request,
       HttpServletResponse response,
-      Authentication authentication) throws IOException, ServletException {
+      Authentication authentication) throws IOException {
+    AppUser user = null;
     if (authentication.getPrincipal() instanceof OAuth2User principal) {
-      authService.syncGoogleUser(principal);
+      user = authService.syncGoogleUser(principal);
     }
-    String redirectUrl = frontendUrl + "?oauth=google&status=success";
-    response.sendRedirect(redirectUrl);
+    if (user != null) {
+      String token = jwtTokenProvider.generateToken(user);
+      String redirectUrl = frontendUrl + "?oauth=google&status=success&token=" + token
+          + "&email=" + URLEncoder.encode(user.email, StandardCharsets.UTF_8)
+          + "&role=" + user.role.name();
+      response.sendRedirect(redirectUrl);
+    } else {
+      response.sendRedirect(frontendUrl + "?oauth=google&status=error&message=No+se+pudo+autenticar");
+    }
   }
 
   public String failureUrl() {

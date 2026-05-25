@@ -34,4 +34,6 @@ public class AppUser {
 
   @Enumerated(EnumType.STRING)
   public UserRole role = UserRole.VIEWER;
+
+  public boolean verified;
 }

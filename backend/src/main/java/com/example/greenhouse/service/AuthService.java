@@ -64,6 +64,22 @@ public class AuthService {
     return users.save(user);
   }
 
+  @Transactional
+  public void verifyEmail(String email) {
+    AppUser user = users.findByEmail(email)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+    user.verified = true;
+    users.save(user);
+  }
+
+  @Transactional
+  public void resetPassword(String email, String newPassword) {
+    AppUser user = users.findByEmail(email)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+    user.passwordHash = passwordEncoder.encode(newPassword);
+    users.save(user);
+  }
+
   private AppUser authenticateExisting(AppUser user, LoginRequest request) {
     if (!passwordEncoder.matches(request.password(), user.passwordHash)) {
       throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");

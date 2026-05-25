@@ -41,6 +41,7 @@ export function clearStoredSession() {
 }
 
 let onUnauthorizedCallback = null;
+let refreshAttempted = false;
 
 export function setOnUnauthorized(callback) {
   onUnauthorizedCallback = callback;
@@ -51,6 +52,41 @@ function triggerUnauthorized() {
   if (onUnauthorizedCallback) {
     onUnauthorizedCallback();
   }
+}
+
+async function tryRefreshToken() {
+  if (refreshAttempted) return false;
+  refreshAttempted = true;
+  try {
+    const session = getStoredSession();
+    if (!session?.token) return false;
+    const response = await fetch(getApiUrl('/api/auth/refresh'), {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!response.ok) return false;
+    const data = await response.json();
+    if (data.token) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        ...session,
+        token: data.token
+      }));
+      refreshAttempted = false;
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  } finally {
+    setTimeout(() => { refreshAttempted = false; }, 10000);
+  }
+}
+
+export function resetRefreshAttempt() {
+  refreshAttempted = false;
 }
 
 // --- Auth header builder (centralizado) ---
@@ -69,7 +105,8 @@ function authHeaders(extra = {}) {
 // --- HTTP helpers (centralizados, con auth automático) ---
 
 async function sendJson(path, method, body) {
-  const response = await fetch(path, {
+  const url = getApiUrl(path);
+  let response = await fetch(url, {
     method,
     headers: {
       'Content-Type': 'application/json',
@@ -77,6 +114,19 @@ async function sendJson(path, method, body) {
     },
     body: JSON.stringify(body)
   });
+  if (response.status === 401) {
+    const refreshed = await tryRefreshToken();
+    if (refreshed) {
+      response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders()
+        },
+        body: JSON.stringify(body)
+      });
+    }
+  }
   if (response.status === 401 || response.status === 403) {
     triggerUnauthorized();
     throw new Error(`Request failed: ${response.status}`);
@@ -88,8 +138,15 @@ async function sendJson(path, method, body) {
 }
 
 async function fetchJson(path, fallback) {
+  const url = getApiUrl(path);
   try {
-    const response = await fetch(path, { headers: authHeaders() });
+    let response = await fetch(url, { headers: authHeaders() });
+    if (response.status === 401) {
+      const refreshed = await tryRefreshToken();
+      if (refreshed) {
+        response = await fetch(url, { headers: authHeaders() });
+      }
+    }
     if (response.status === 401 || response.status === 403) {
       triggerUnauthorized();
       throw new Error(`Session expired: ${response.status}`);
@@ -102,7 +159,14 @@ async function fetchJson(path, fallback) {
 }
 
 async function deleteJson(path) {
-  const response = await fetch(path, { method: 'DELETE', headers: authHeaders() });
+  const url = getApiUrl(path);
+  let response = await fetch(url, { method: 'DELETE', headers: authHeaders() });
+  if (response.status === 401) {
+    const refreshed = await tryRefreshToken();
+    if (refreshed) {
+      response = await fetch(url, { method: 'DELETE', headers: authHeaders() });
+    }
+  }
   if (response.status === 401 || response.status === 403) {
     triggerUnauthorized();
     throw new Error(`Session expired: ${response.status}`);
@@ -116,12 +180,39 @@ export function loginWithEmail(payload) {
   return sendJson('/api/auth/login', 'POST', payload);
 }
 
+const API_BASE = import.meta.env.VITE_API_URL ?? '';
+
+export function getApiUrl(path) {
+  return `${API_BASE}${path}`;
+}
+
 export function beginGoogleOAuth() {
-  window.location.assign('http://localhost:8080/oauth2/authorization/google');
+  const base = API_BASE || 'http://localhost:8080';
+  window.location.assign(`${base}/oauth2/authorization/google`);
+}
+
+export function refreshToken() {
+  return sendJson('/api/auth/refresh', 'POST', {});
+}
+
+export function forgotPassword(email) {
+  return sendJson('/api/auth/forgot-password', 'POST', { email });
+}
+
+export function resetPassword(token, password) {
+  return sendJson('/api/auth/reset-password', 'POST', { token, password });
+}
+
+export function verifyEmail(token) {
+  return sendJson('/api/auth/verify', 'POST', { token });
+}
+
+export function resendVerification() {
+  return sendJson('/api/auth/resend-verification', 'POST', {});
 }
 
 export async function fetchCurrentOAuthUser() {
-  const response = await fetch('/api/auth/me', {
+  const response = await fetch(getApiUrl('/api/auth/me'), {
     credentials: 'include',
     headers: authHeaders()
   });
@@ -274,10 +365,20 @@ export function updateUserRole(userId, role) {
 }
 
 export async function resolveAlert(alertId) {
-  const response = await fetch(`/api/alerts/${alertId}/resolve`, {
+  const url = getApiUrl(`/api/alerts/${alertId}/resolve`);
+  let response = await fetch(url, {
     method: 'PATCH',
     headers: authHeaders()
   });
+  if (response.status === 401) {
+    const refreshed = await tryRefreshToken();
+    if (refreshed) {
+      response = await fetch(url, {
+        method: 'PATCH',
+        headers: authHeaders()
+      });
+    }
+  }
   if (response.status === 401 || response.status === 403) {
     triggerUnauthorized();
     throw new Error(`Session expired: ${response.status}`);

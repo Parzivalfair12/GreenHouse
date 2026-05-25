@@ -1,5 +1,6 @@
-import { AlertTriangle, Bell, Leaf, Plus, Power, Radio, Sprout } from 'lucide-react';
+import { AlertTriangle, Bell, FlaskConical, Leaf, Plus, Power, Radio, Sprout } from 'lucide-react';
 import { Metric, Panel, Section } from './shared.jsx';
+import { IaPreview } from './IaSection.jsx';
 
 export function DashboardSection({ totals, selected, alerts, dashboard, readings, sensors, t, openAlerts }) {
   return (
@@ -10,6 +11,7 @@ export function DashboardSection({ totals, selected, alerts, dashboard, readings
         <Metric icon={<Radio />} label={t.sensors} value={dashboard?.sensors ?? totals.sensors} />
         <Metric icon={<Power />} label={t.actuatorsOn} value={dashboard?.actuatorsEnabled ?? totals.irrigation} tone="power" />
         <Metric icon={<AlertTriangle />} label={t.pending} value={dashboard?.openAlerts ?? totals.alerts} tone="warning" />
+        <Metric icon={<FlaskConical />} label={'IA'} value={<IaPreview readings={readings} sensors={sensors} />} />
       </section>
       <div className="dashboardGrid">
         <SensorChart dashboard={dashboard} selected={selected} readings={readings} sensors={sensors} t={t} />

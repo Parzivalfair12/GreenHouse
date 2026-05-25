@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_DB: greenhouse
       POSTGRES_USER: greenhouse_user
-      POSTGRES_PASSWORD: greenhouse_pass
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-greenhouse_pass}
     ports:
       - "5432:5432"
     volumes:
@@ -16,6 +16,33 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  backend:
+    build: ./backend
+    container_name: greenhouse-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/greenhouse
+      DB_USERNAME: greenhouse_user
+      DB_PASSWORD: ${DB_PASSWORD:-greenhouse_pass}
+      JWT_SECRET: ${JWT_SECRET:-mi_clave_secreta_para_desarrollo_12345678901234567890}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build: ./frontend
+    container_name: greenhouse-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
 
 volumes:
   greenhouse_postgres_data:

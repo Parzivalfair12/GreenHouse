@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
@@ -67,6 +68,85 @@ public class AuthController {
   @PostMapping("/register")
   public UserResponse register(@Valid @RequestBody UserCreateRequest request) {
     return UserResponse.from(service.register(request));
+  }
+
+  @Operation(summary = "Refrescar token", description = "Extiende la validez del JWT actual")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "Nuevo token JWT generado"),
+      @ApiResponse(responseCode = "401", description = "Token invalido o expirado")
+  })
+  @PostMapping("/refresh")
+  @PreAuthorize("isAuthenticated()")
+  public LoginResponse refresh(Authentication authentication) {
+    String email = authentication.getName();
+    AppUser user = service.findByEmail(email)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no encontrado"));
+    String token = jwtTokenProvider.generateToken(user);
+    return new LoginResponse(token, user.email, user.fullName,
+        List.of("ROLE_" + user.role.name()), expirationMs / 1000);
+  }
+
+  @Operation(summary = "Verificar email", description = "Marca el email como verificado usando un token JWT")
+  @PostMapping("/verify")
+  public Map<String, String> verifyEmail(@RequestBody Map<String, String> body) {
+    String token = body.get("token");
+    if (token == null || token.isBlank()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token requerido");
+    }
+    if (!jwtTokenProvider.validateToken(token)) {
+      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token invalido o expirado");
+    }
+    String email = jwtTokenProvider.getEmailFromToken(token);
+    service.verifyEmail(email);
+    return Map.of("message", "Email verificado correctamente");
+  }
+
+  @Operation(summary = "Reenviar verificacion", description = "Genera un nuevo token de verificacion y lo muestra en consola")
+  @PostMapping("/resend-verification")
+  @PreAuthorize("isAuthenticated()")
+  public Map<String, String> resendVerification(Authentication authentication) {
+    String email = authentication.getName();
+    AppUser user = service.findByEmail(email)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+    String verifyToken = jwtTokenProvider.generateToken(user);
+    System.out.println("=== VERIFY EMAIL TOKEN for " + email + " ===");
+    System.out.println(verifyToken);
+    System.out.println("=== Use POST /api/auth/verify with {\"token\":\"" + verifyToken + "\"} ===");
+    return Map.of("message", "Token de verificacion generado (modo consola)");
+  }
+
+  @Operation(summary = "Solicitar recuperacion de contrasena", description = "Genera un token de recuperacion y lo muestra en consola")
+  @PostMapping("/forgot-password")
+  public Map<String, String> forgotPassword(@RequestBody Map<String, String> body) {
+    String email = body.get("email");
+    if (email == null || email.isBlank()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email requerido");
+    }
+    AppUser user = service.findByEmail(email).orElse(null);
+    if (user == null) {
+      return Map.of("message", "Si el correo existe, se ha enviado un enlace de recuperacion (modo consola)");
+    }
+    String resetToken = jwtTokenProvider.generateToken(user);
+    System.out.println("=== RESET PASSWORD TOKEN for " + email + " ===");
+    System.out.println(resetToken);
+    System.out.println("=== USE POST /api/auth/reset-password with this token ===");
+    return Map.of("message", "Si el correo existe, se ha enviado un enlace de recuperacion (modo consola)");
+  }
+
+  @Operation(summary = "Restablecer contrasena", description = "Usa el token de recuperacion para cambiar la contrasena")
+  @PostMapping("/reset-password")
+  public Map<String, String> resetPassword(@RequestBody Map<String, String> body) {
+    String token = body.get("token");
+    String newPassword = body.get("password");
+    if (token == null || newPassword == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token y password requeridos");
+    }
+    if (!jwtTokenProvider.validateToken(token)) {
+      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token invalido o expirado");
+    }
+    String email = jwtTokenProvider.getEmailFromToken(token);
+    service.resetPassword(email, newPassword);
+    return Map.of("message", "Contrasena restablecida correctamente");
   }
 
   @Operation(summary = "Perfil actual", description = "Devuelve los datos del usuario autenticado (JWT u OAuth2)")

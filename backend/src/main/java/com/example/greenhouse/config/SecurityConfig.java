@@ -38,6 +38,8 @@ public class SecurityConfig {
             // Publicos — sin autenticacion
             .requestMatchers("/api/auth/login").permitAll()
             .requestMatchers("/api/auth/register").permitAll()
+            .requestMatchers("/api/auth/forgot-password").permitAll()
+            .requestMatchers("/api/auth/reset-password").permitAll()
             .requestMatchers("/api/public/**").permitAll()
             .requestMatchers("/api/health").permitAll()
             .requestMatchers("/error", "/swagger-ui/**", "/v3/api-docs/**", "/h2-console/**").permitAll()
@@ -75,7 +77,11 @@ public class SecurityConfig {
   @Bean
   CorsConfigurationSource corsConfigurationSource(@Value("${app.frontend-url}") String frontendUrl) {
     CorsConfiguration configuration = new CorsConfiguration();
-    configuration.setAllowedOrigins(List.of(frontendUrl));
+    var origins = new java.util.ArrayList<>(List.of("http://localhost:5173", "http://localhost:3000"));
+    if (frontendUrl != null && !frontendUrl.isBlank() && !origins.contains(frontendUrl)) {
+      origins.add(frontendUrl);
+    }
+    configuration.setAllowedOriginPatterns(origins);
     configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
     configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept-Language"));
     configuration.setAllowCredentials(true);
