@@ -21,6 +21,9 @@ export default [
         Blob: 'readonly',
         fetch: 'readonly',
         Event: 'readonly',
+        crypto: 'readonly',
+        TextEncoder: 'readonly',
+        navigator: 'readonly',
       },
     },
     rules: {

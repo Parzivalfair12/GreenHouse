@@ -1,0 +1,232 @@
+{
+  "project": "GreenHouse",
+  "version": "2.1.0",
+  "database": "PostgreSQL 16",
+  "basePackage": "com.example.greenhouse",
+  "entities": [
+    {
+      "name": "Greenhouse",
+      "table": "greenhouse",
+      "description": "Physical greenhouse that groups crops, sensors and irrigation events",
+      "audit": true,
+      "softDelete": false,
+      "timestamps": true,
+      "indexes": [
+        { "name": "idx_greenhouse_active", "columns": ["active"], "unique": false }
+      ],
+      "permissions": ["ADMIN:CREATE", "ADMIN:UPDATE", "ADMIN:DELETE", "VIEWER:READ"],
+      "fields": [
+        { "name": "id", "type": "Long", "pk": true, "nullable": false, "description": "Identificador unico" },
+        { "name": "name", "type": "String", "nullable": false, "validation": "@NotBlank", "description": "Nombre visible del invernadero" },
+        { "name": "location", "type": "String", "nullable": false, "validation": "@NotBlank", "description": "Ubicacion fisica" },
+        { "name": "areaSquareMeters", "type": "BigDecimal", "nullable": false, "validation": "@Positive", "description": "Area en metros cuadrados" },
+        { "name": "active", "type": "boolean", "nullable": false, "default": "true", "description": "Estado operativo" }
+      ]
+    },
+    {
+      "name": "Crop",
+      "table": "crop",
+      "description": "Crop planted inside a greenhouse",
+      "audit": true,
+      "softDelete": false,
+      "timestamps": true,
+      "permissions": ["ADMIN:CREATE", "ADMIN:UPDATE", "OPERATOR:CREATE", "VIEWER:READ"],
+      "fields": [
+        { "name": "id", "type": "Long", "pk": true, "nullable": false, "description": "Identificador unico" },
+        { "name": "greenhouse_id", "type": "Long", "fk": true, "references": { "entity": "Greenhouse", "field": "id", "cardinality": "N:1" }, "nullable": false, "description": "Foreign key to Greenhouse" },
+        { "name": "name", "type": "String", "nullable": false, "validation": "@NotBlank", "description": "Nombre del cultivo" },
+        { "name": "variety", "type": "String", "nullable": true, "description": "Variedad del cultivo" },
+        { "name": "plantedAt", "type": "LocalDate", "nullable": true, "description": "Fecha de siembra" },
+        { "name": "expectedHarvestAt", "type": "LocalDate", "nullable": true, "description": "Fecha estimada de cosecha" },
+        { "name": "status", "type": "CropStatus", "nullable": false, "enum": ["GERMINATING", "GROWING", "HARVESTED", "LOST"], "default": "GERMINATING", "description": "Estado del cultivo" }
+      ]
+    },
+    {
+      "name": "Sensor",
+      "table": "sensor",
+      "description": "Device that captures environmental measurements",
+      "audit": true,
+      "softDelete": false,
+      "timestamps": true,
+      "indexes": [
+        { "name": "idx_sensor_code", "columns": ["code"], "unique": true },
+        { "name": "idx_sensor_greenhouse", "columns": ["greenhouse_id"], "unique": false }
+      ],
+      "permissions": ["ADMIN:CREATE", "OPERATOR:CREATE", "VIEWER:READ"],
+      "fields": [
+        { "name": "id", "type": "Long", "pk": true, "nullable": false, "description": "Identificador unico" },
+        { "name": "greenhouse_id", "type": "Long", "fk": true, "references": { "entity": "Greenhouse", "field": "id", "cardinality": "N:1" }, "nullable": false, "description": "Foreign key to Greenhouse" },
+        { "name": "zone_id", "type": "Long", "fk": true, "references": { "entity": "Zone", "field": "id", "cardinality": "N:1" }, "nullable": true, "description": "Foreign key to Zone" },
+        { "name": "code", "type": "String", "nullable": false, "unique": true, "validation": "@NotBlank", "description": "Codigo unico del sensor" },
+        { "name": "type", "type": "SensorType", "nullable": false, "enum": ["TEMPERATURE", "HUMIDITY", "SOIL_MOISTURE", "LIGHT"], "description": "Tipo de sensor" },
+        { "name": "unit", "type": "String", "nullable": false, "validation": "@NotBlank", "description": "Unidad de medida" },
+        { "name": "minThreshold", "type": "BigDecimal", "nullable": true, "description": "Umbral minimo" },
+        { "name": "maxThreshold", "type": "BigDecimal", "nullable": true, "description": "Umbral maximo" }
+      ]
+    },
+    {
+      "name": "Reading",
+      "table": "reading",
+      "description": "Measurement captured by a sensor",
+      "audit": true,
+      "timestamps": true,
+      "permissions": ["OPERATOR:CREATE", "VIEWER:READ"],
+      "fields": [
+        { "name": "id", "type": "Long", "pk": true, "nullable": false, "description": "Identificador unico" },
+        { "name": "sensor_id", "type": "Long", "fk": true, "references": { "entity": "Sensor", "field": "id", "cardinality": "N:1" }, "nullable": false, "description": "Foreign key to Sensor" },
+        { "name": "value", "type": "BigDecimal", "nullable": false, "column": "reading_value", "validation": "@NotNull", "description": "Valor de la lectura" },
+        { "name": "recordedAt", "type": "LocalDateTime", "nullable": false, "validation": "@NotNull", "description": "Fecha y hora de la lectura" }
+      ]
+    },
+    {
+      "name": "IrrigationEvent",
+      "table": "irrigation_event",
+      "description": "Registered irrigation activity",
+      "audit": true,
+      "timestamps": true,
+      "permissions": ["OPERATOR:CREATE", "VIEWER:READ"],
+      "fields": [
+        { "name": "id", "type": "Long", "pk": true, "nullable": false, "description": "Identificador unico" },
+        { "name": "greenhouse_id", "type": "Long", "fk": true, "references": { "entity": "Greenhouse", "field": "id", "cardinality": "N:1" }, "nullable": false, "description": "Foreign key to Greenhouse" },
+        { "name": "startedAt", "type": "LocalDateTime", "nullable": true, "description": "Fecha y hora de inicio" },
+        { "name": "durationMinutes", "type": "int", "nullable": false, "validation": "@Positive", "description": "Duracion en minutos" },
+        { "name": "waterLiters", "type": "BigDecimal", "nullable": false, "validation": "@Positive", "description": "Litros de agua utilizados" },
+        { "name": "mode", "type": "IrrigationMode", "nullable": false, "enum": ["MANUAL", "AUTOMATIC"], "default": "AUTOMATIC", "description": "Modo de riego" }
+      ]
+    },
+    {
+      "name": "Alert",
+      "table": "alert",
+      "description": "Operational warning produced when a sensor is outside thresholds",
+      "audit": true,
+      "timestamps": true,
+      "indexes": [
+        { "name": "idx_alert_resolved", "columns": ["resolved"], "unique": false }
+      ],
+      "permissions": ["OPERATOR:READ", "OPERATOR:UPDATE", "VIEWER:READ"],
+      "fields": [
+        { "name": "id", "type": "Long", "pk": true, "nullable": false, "description": "Identificador unico" },
+        { "name": "sensor_id", "type": "Long", "fk": true, "references": { "entity": "Sensor", "field": "id", "cardinality": "N:1" }, "nullable": false, "description": "Foreign key to Sensor" },
+        { "name": "severity", "type": "AlertSeverity", "nullable": false, "enum": ["INFO", "WARNING", "CRITICAL"], "default": "INFO", "description": "Severidad de la alerta" },
+        { "name": "message", "type": "String", "nullable": false, "validation": "@NotBlank", "description": "Mensaje de la alerta" },
+        { "name": "resolved", "type": "boolean", "nullable": false, "default": "false", "description": "Indica si la alerta fue resuelta" },
+        { "name": "createdAt", "type": "LocalDateTime", "nullable": false, "default": "now()", "description": "Fecha de creacion" }
+      ]
+    },
+    {
+      "name": "Actuator",
+      "table": "actuator",
+      "description": "Simulated device that can be enabled by manual actions or automation rules",
+      "audit": true,
+      "timestamps": true,
+      "permissions": ["OPERATOR:CREATE", "OPERATOR:UPDATE", "VIEWER:READ"],
+      "fields": [
+        { "name": "id", "type": "Long", "pk": true, "nullable": false, "description": "Identificador unico" },
+        { "name": "greenhouse_id", "type": "Long", "fk": true, "references": { "entity": "Greenhouse", "field": "id", "cardinality": "N:1" }, "nullable": false, "description": "Foreign key to Greenhouse" },
+        { "name": "name", "type": "String", "nullable": false, "validation": "@NotBlank", "description": "Nombre del actuador" },
+        { "name": "type", "type": "ActuatorType", "nullable": false, "enum": ["IRRIGATION", "FAN", "HEATER", "LIGHT"], "default": "IRRIGATION", "description": "Tipo de actuador" },
+        { "name": "enabled", "type": "boolean", "nullable": false, "default": "false", "description": "Estado operativo" },
+        { "name": "active", "type": "boolean", "nullable": false, "default": "true", "description": "Estado activo" }
+      ]
+    },
+    {
+      "name": "AutomationRule",
+      "table": "automation_rule",
+      "description": "Automation rule evaluated when readings are registered",
+      "audit": true,
+      "timestamps": true,
+      "permissions": ["ADMIN:CREATE", "OPERATOR:READ", "VIEWER:READ"],
+      "fields": [
+        { "name": "id", "type": "Long", "pk": true, "nullable": false, "description": "Identificador unico" },
+        { "name": "greenhouse_id", "type": "Long", "fk": true, "references": { "entity": "Greenhouse", "field": "id", "cardinality": "N:1" }, "nullable": false, "description": "Foreign key to Greenhouse" },
+        { "name": "name", "type": "String", "nullable": false, "validation": "@NotBlank", "description": "Nombre de la regla" },
+        { "name": "type", "type": "RuleType", "nullable": false, "enum": ["LOW_HUMIDITY_IRRIGATION"], "description": "Tipo de regla" },
+        { "name": "threshold", "type": "BigDecimal", "nullable": true, "description": "Umbral de la regla" },
+        { "name": "enabled", "type": "boolean", "nullable": false, "default": "true", "description": "Estado de la regla" }
+      ]
+    },
+    {
+      "name": "Zone",
+      "table": "zone",
+      "description": "Functional area inside a greenhouse",
+      "audit": true,
+      "timestamps": true,
+      "permissions": ["ADMIN:CREATE", "OPERATOR:UPDATE", "VIEWER:READ"],
+      "fields": [
+        { "name": "id", "type": "Long", "pk": true, "nullable": false, "description": "Identificador unico" },
+        { "name": "greenhouse_id", "type": "Long", "fk": true, "references": { "entity": "Greenhouse", "field": "id", "cardinality": "N:1" }, "nullable": false, "description": "Foreign key to Greenhouse" },
+        { "name": "name", "type": "String", "nullable": false, "validation": "@NotBlank", "description": "Nombre de la zona" },
+        { "name": "description", "type": "String", "nullable": true, "description": "Descripcion de la zona" },
+        { "name": "active", "type": "boolean", "nullable": false, "default": "true", "description": "Estado activo" }
+      ]
+    },
+    {
+      "name": "AuditLog",
+      "table": "audit_log",
+      "description": "Operational log for manual and automatic actions",
+      "audit": true,
+      "timestamps": true,
+      "permissions": ["ADMIN:READ", "VIEWER:READ"],
+      "fields": [
+        { "name": "id", "type": "Long", "pk": true, "nullable": false, "description": "Identificador unico" },
+        { "name": "action", "type": "String", "nullable": false, "validation": "@NotBlank", "description": "Accion realizada" },
+        { "name": "detail", "type": "String", "nullable": true, "description": "Detalle de la accion" },
+        { "name": "createdAt", "type": "LocalDateTime", "nullable": false, "default": "now()", "description": "Fecha de creacion" },
+        { "name": "origin", "type": "ActionOrigin", "nullable": false, "enum": ["MANUAL", "AUTOMATIC"], "default": "MANUAL", "description": "Origen de la accion" }
+      ]
+    },
+    {
+      "name": "AppUser",
+      "table": "app_user",
+      "description": "Authenticated user authorized to operate the greenhouse system",
+      "audit": true,
+      "softDelete": false,
+      "timestamps": true,
+      "indexes": [
+        { "name": "idx_app_user_email", "columns": ["email"], "unique": true }
+      ],
+      "permissions": ["ADMIN:CREATE", "ADMIN:UPDATE", "VIEWER:READ"],
+      "seed": [
+        { "email": "admin@greenhouse.local", "fullName": "Administrador", "role": "ADMIN" }
+      ],
+      "fields": [
+        { "name": "id", "type": "Long", "pk": true, "nullable": false, "description": "Identificador unico" },
+        { "name": "email", "type": "String", "nullable": false, "unique": true, "validation": "@Email @NotBlank", "description": "Correo electronico" },
+        { "name": "fullName", "type": "String", "nullable": false, "validation": "@NotBlank", "description": "Nombre completo" },
+        { "name": "passwordHash", "type": "String", "nullable": false, "validation": "@NotBlank", "description": "Hash de contrasena" },
+        { "name": "provider", "type": "String", "nullable": false, "default": "email", "description": "Proveedor de autenticacion" },
+        { "name": "role", "type": "UserRole", "nullable": false, "enum": ["ADMIN", "OPERATOR", "VIEWER"], "default": "VIEWER", "description": "Rol del usuario" },
+        { "name": "verified", "type": "boolean", "nullable": false, "default": "false", "description": "Email verificado" }
+      ]
+    }
+  ],
+  "enums": [
+    { "name": "ActionOrigin", "values": ["MANUAL", "AUTOMATIC"] },
+    { "name": "ActuatorType", "values": ["IRRIGATION", "FAN", "HEATER", "LIGHT"] },
+    { "name": "AlertSeverity", "values": ["INFO", "WARNING", "CRITICAL"] },
+    { "name": "CropStatus", "values": ["GERMINATING", "GROWING", "HARVESTED", "LOST"] },
+    { "name": "IrrigationMode", "values": ["MANUAL", "AUTOMATIC"] },
+    { "name": "RuleType", "values": ["LOW_HUMIDITY_IRRIGATION"] },
+    { "name": "SensorType", "values": ["TEMPERATURE", "HUMIDITY", "SOIL_MOISTURE", "LIGHT"] },
+    { "name": "UserRole", "values": ["ADMIN", "OPERATOR", "VIEWER"] }
+  ],
+  "relationships": [
+    { "from": "Greenhouse", "to": "Crop", "type": "OneToMany", "fk": "greenhouse_id", "cardinality": "1:N" },
+    { "from": "Greenhouse", "to": "Sensor", "type": "OneToMany", "fk": "greenhouse_id", "cardinality": "1:N" },
+    { "from": "Greenhouse", "to": "Zone", "type": "OneToMany", "fk": "greenhouse_id", "cardinality": "1:N" },
+    { "from": "Greenhouse", "to": "Actuator", "type": "OneToMany", "fk": "greenhouse_id", "cardinality": "1:N" },
+    { "from": "Greenhouse", "to": "AutomationRule", "type": "OneToMany", "fk": "greenhouse_id", "cardinality": "1:N" },
+    { "from": "Greenhouse", "to": "IrrigationEvent", "type": "OneToMany", "fk": "greenhouse_id", "cardinality": "1:N" },
+    { "from": "Sensor", "to": "Reading", "type": "OneToMany", "fk": "sensor_id", "cardinality": "1:N" },
+    { "from": "Sensor", "to": "Alert", "type": "OneToMany", "fk": "sensor_id", "cardinality": "1:N" },
+    { "from": "Zone", "to": "Sensor", "type": "OneToMany", "fk": "zone_id", "cardinality": "1:N" },
+    { "from": "Crop", "to": "Greenhouse", "type": "ManyToOne", "fk": "greenhouse_id", "cardinality": "N:1" },
+    { "from": "Sensor", "to": "Greenhouse", "type": "ManyToOne", "fk": "greenhouse_id", "cardinality": "N:1" },
+    { "from": "Reading", "to": "Sensor", "type": "ManyToOne", "fk": "sensor_id", "cardinality": "N:1" },
+    { "from": "IrrigationEvent", "to": "Greenhouse", "type": "ManyToOne", "fk": "greenhouse_id", "cardinality": "N:1" },
+    { "from": "Alert", "to": "Sensor", "type": "ManyToOne", "fk": "sensor_id", "cardinality": "N:1" },
+    { "from": "Actuator", "to": "Greenhouse", "type": "ManyToOne", "fk": "greenhouse_id", "cardinality": "N:1" },
+    { "from": "AutomationRule", "to": "Greenhouse", "type": "ManyToOne", "fk": "greenhouse_id", "cardinality": "N:1" },
+    { "from": "Zone", "to": "Greenhouse", "type": "ManyToOne", "fk": "greenhouse_id", "cardinality": "N:1" }
+  ]
+}

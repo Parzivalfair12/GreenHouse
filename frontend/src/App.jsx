@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, Bell, BookOpen, CircleHelp, Cpu, Database, LayoutDashboard, ListChecks, Map as MapIcon, Moon, Radio, Sun, Users, Warehouse } from 'lucide-react';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { Activity, Bell, BookOpen, CircleHelp, Cpu, Database, LayoutDashboard, ListChecks, Map as MapIcon, Moon, Radio, Share2, Sun, Users, Warehouse } from 'lucide-react';
 import { ToastContainer, showToast } from './components/Toast.jsx';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
+import { ERDViewer } from './pages/ERD/ERDViewer.jsx';
+
 import {
   addCrop,
   addIrrigation,
@@ -50,8 +53,11 @@ import { AlertsSection } from './components/AlertsSection.jsx';
 import { AppHeader, SidebarBrand } from './components/AppHeader.jsx';
 import { DashboardSection } from './components/DashboardSection.jsx';
 import { CrudSection } from './components/CrudSection.jsx';
+import { ArchitectureSection } from './components/ArchitectureSection.jsx';
+import { DataDictionarySection } from './components/DataDictionarySection.jsx';
 import { DataSection } from './components/DataSection.jsx';
 import { IaSection } from './components/IaSection.jsx';
+import { TaigaSection } from './components/TaigaSection.jsx';
 import { GreenhousesSection } from './components/GreenhousesSection.jsx';
 import { LoginScreen } from './components/LoginScreen.jsx';
 import { ManualSection } from './components/ManualSection.jsx';
@@ -68,10 +74,18 @@ const emptyIrrigation = { durationMinutes: 10, waterLiters: 20, mode: 'MANUAL' }
 const emptyUser = { fullName: '', email: '', password: '', role: 'VIEWER' };
 
 export function App() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [theme, setTheme] = useState(() => localStorage.getItem('greenhouse-theme') ?? 'dark');
   const [language, setLanguage] = useState('es');
   const [session, setSession] = useStoredSession();
   const [activeSection, setActiveSection] = useState('dashboard');
+
+  const isERDPath = location.pathname.startsWith('/erd');
+
+  useEffect(() => {
+    if (location.pathname === '/erd') setActiveSection('erd');
+  }, [location.pathname]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -187,6 +201,8 @@ export function App() {
   const sections = [
     { id: 'dashboard', label: t.dashboard, icon: LayoutDashboard },
     { id: 'greenhouses', label: t.greenhouses, icon: Warehouse },
+    { id: 'architecture', label: 'Arquitectura', icon: Activity },
+    { id: 'dictionary', label: 'Diccionario', icon: Database },
     { id: 'zones', label: t.zones, icon: MapIcon },
     { id: 'sensors', label: t.sensors, icon: Radio },
     { id: 'readings', label: t.readings, icon: Activity },
@@ -195,11 +211,19 @@ export function App() {
     { id: 'operations', label: t.operations, icon: Activity },
     { id: 'alerts', label: t.alerts, icon: Bell },
     { id: 'ia', label: 'IA', icon: Cpu },
+    { id: 'taiga', label: 'Taiga', icon: ListChecks },
     { id: 'logs', label: t.auditLog, icon: BookOpen },
     { id: 'users', label: t.users, icon: Users },
     { id: 'data', label: t.data, icon: Database },
-    { id: 'manual', label: t.manual, icon: CircleHelp }
+    { id: 'manual', label: t.manual, icon: CircleHelp },
+    { id: 'erd', label: 'ERD', icon: Share2, action: () => navigate('/erd') }
   ];
+
+  useEffect(() => {
+    if (location.pathname.startsWith('/erd')) {
+      document.documentElement.setAttribute('data-theme', theme);
+    }
+  }, [location.pathname, theme]);
 
   async function handleLogin(credentials) {
     try {
@@ -380,6 +404,16 @@ export function App() {
     );
   }
 
+  if (isERDPath) {
+    return (
+      <div className={`theme-${theme}`}>
+        <Routes>
+          <Route path="/erd" element={<ERDViewer />} />
+        </Routes>
+      </div>
+    );
+  }
+
   return (
     <ErrorBoundary t={t}>
     <main className={`appShell theme-${theme}`}>
@@ -410,6 +444,8 @@ export function App() {
         />
       )}
 
+      {activeSection === 'architecture' && <ArchitectureSection t={t} />}
+      {activeSection === 'dictionary' && <DataDictionarySection t={t} />}
       {activeSection === 'greenhouses' && (
         <GreenhousesSection
           form={greenhouseForm}
@@ -469,6 +505,7 @@ export function App() {
 
       {activeSection === 'alerts' && <AlertsSection alerts={alerts} onResolve={handleResolveAlert} t={t} />}
       {activeSection === 'ia' && <IaSection readings={readings} sensors={allSensors} t={t} />}
+      {activeSection === 'taiga' && <TaigaSection t={t} />}
       {activeSection === 'logs' && (
         <CrudSection title={t.auditLog} formTitle={t.auditLog} items={logs} emptyItem={{}} fields={[]} columns={[{ key: 'action', label: t.action }, { key: 'origin', label: t.origin }, { key: 'detail', label: t.detail }, { key: 'createdAt', label: t.date }]} onCreate={async () => {}} onUpdate={async () => {}} onDelete={async () => {}} deleteLabel={t.noAction} t={t} />
       )}

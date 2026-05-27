@@ -16,7 +16,6 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-/** OAuth2 and endpoint authorization rules. */
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
@@ -35,7 +34,7 @@ public class SecurityConfig {
         .cors(Customizer.withDefaults())
         .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
         .authorizeHttpRequests(auth -> auth
-            // Publicos — sin autenticacion
+            // Public endpoints
             .requestMatchers("/api/auth/login").permitAll()
             .requestMatchers("/api/auth/register").permitAll()
             .requestMatchers("/api/auth/forgot-password").permitAll()
@@ -44,23 +43,20 @@ public class SecurityConfig {
             .requestMatchers("/api/health").permitAll()
             .requestMatchers("/error", "/swagger-ui/**", "/v3/api-docs/**", "/h2-console/**").permitAll()
 
-            // Admin only
             .requestMatchers(HttpMethod.POST, "/api/users/**").hasRole("ADMIN")
             .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("ADMIN")
             .requestMatchers(HttpMethod.POST, "/api/greenhouses").hasRole("ADMIN")
             .requestMatchers(HttpMethod.PUT, "/api/greenhouses/**").hasRole("ADMIN")
             .requestMatchers(HttpMethod.DELETE, "/api/greenhouses/**").hasRole("ADMIN")
 
-            // Operator y Admin pueden resolver alertas
+            // Operator and Admin can resolve alerts
             .requestMatchers("/api/alerts/*/resolve").hasAnyRole("ADMIN", "OPERATOR")
 
-            // Todos los autenticados pueden leer
+            // Authenticated read access
             .requestMatchers(HttpMethod.GET, "/api/**").authenticated()
 
-            // El resto de /api/** requiere autenticacion minima
+            // All other API requires authentication
             .requestMatchers("/api/**").authenticated()
-
-            // Cualquier otra peticion
             .anyRequest().authenticated())
         .oauth2Login(oauth -> oauth
             .successHandler(successHandler)

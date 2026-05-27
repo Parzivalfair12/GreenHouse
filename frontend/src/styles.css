@@ -1599,3 +1599,296 @@ select:focus {
   padding: 20px;
   text-align: center;
 }
+
+/* ===========================
+   TAIGA SECTION
+   =========================== */
+.storiesList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.storyCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.storyCard:hover {
+  background: var(--surface-2);
+}
+
+.storyHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.storyEpic {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.storyTitle {
+  flex: 1;
+  color: var(--text);
+}
+
+.storyStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.storyDesc {
+  font-size: 0.875rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.storyCriteria {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  font-size: 0.85rem;
+}
+
+.criterion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.criterion.passed {
+  color: var(--accent);
+}
+
+/* ===========================
+   ARCHITECTURE SECTION
+   =========================== */
+.archNav {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.archBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.archBtn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.archBtn.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.mermaidContainer {
+  overflow-x: auto;
+  padding: 16px 0;
+}
+
+.mermaidImg {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.mermaidFallback {
+  padding: 16px;
+  background: var(--surface-2);
+  border-radius: 8px;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.techGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.techItem {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  background: var(--surface);
+}
+
+.techItem strong {
+  color: var(--text);
+}
+
+/* ===========================
+   DATA DICTIONARY
+   =========================== */
+.dicLegend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.dicLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dicUniqueBadge, .dicValidationBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.dicUniqueBadge { background: rgba(14, 165, 233, 0.15); color: #0ea5e9; }
+.dicValidationBadge { background: rgba(217, 164, 0, 0.15); color: #d9a400; }
+
+.dicCard {
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.dicHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  cursor: pointer;
+  background: var(--surface-2);
+  transition: background 0.2s;
+  gap: 12px;
+}
+
+.dicHeader:hover { background: var(--surface); }
+
+.dicHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dicTable {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.8rem;
+  color: var(--muted);
+  background: var(--surface-2);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.dicFieldsCount, .dicRelCount {
+  font-size: 0.75rem;
+  color: var(--muted);
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--surface);
+}
+
+.dicBody {
+  padding: 0;
+}
+
+.dicBody table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.dicBody th {
+  text-align: left;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dicBody td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+
+.dicBody tr:last-child td { border-bottom: none; }
+
+.dicField {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.dicIcon { color: var(--accent); flex-shrink: 0; }
+.dicUnique { color: #0ea5e9; font-weight: 700; font-size: 0.75rem; }
+.dicValidation { color: #d9a400; font-weight: 700; font-size: 0.75rem; }
+.dicType { color: var(--muted); font-family: monospace; }
+.dicNull { color: var(--muted); font-size: 0.85rem; }
+.dicDefault { color: var(--muted); font-family: monospace; font-size: 0.8rem; }
+.dicDesc { color: var(--muted); font-size: 0.85rem; }
+
+.dicRelations {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: var(--surface-2);
+  font-size: 0.85rem;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+}
+
+.dicRelTag { color: var(--accent); font-weight: 500; }

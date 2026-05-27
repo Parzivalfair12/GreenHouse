@@ -1,6 +1,11 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App.jsx';
+
+function renderApp() {
+  return render(<MemoryRouter initialEntries={['/']}><App /></MemoryRouter>);
+}
 
 describe('App', () => {
   beforeEach(() => {
@@ -23,13 +28,13 @@ describe('App', () => {
   });
 
   it('renders login screen when not authenticated', async () => {
-    render(<App />);
+    renderApp();
     const headings = await screen.findAllByRole('heading', { name: /acceso al sistema/i });
     expect(headings.length).toBeGreaterThanOrEqual(1);
   });
 
   it('logs in and shows dashboard', async () => {
-    render(<App />);
+    renderApp();
 
     const emailInputs = await screen.findAllByPlaceholderText('admin@greenhouse.local');
     fireEvent.change(emailInputs[0], { target: { value: 'admin@greenhouse.local' } });
@@ -52,7 +57,7 @@ describe('App', () => {
       Promise.reject(new Error('Invalid credentials'))
     ));
 
-    render(<App />);
+    renderApp();
 
     const emailInputs = await screen.findAllByPlaceholderText('admin@greenhouse.local');
     fireEvent.change(emailInputs[0], { target: { value: 'wrong@email.com' } });
@@ -69,7 +74,7 @@ describe('App', () => {
   });
 
   it('shows language selector on login screen', () => {
-    render(<App />);
+    renderApp();
     const selects = screen.getAllByDisplayValue('ES');
     expect(selects.length).toBeGreaterThanOrEqual(1);
   });

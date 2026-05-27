@@ -1,0 +1,487 @@
+.erdLayout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  height: calc(100vh - 72px);
+  background: var(--bg);
+}
+
+.erdSidebar {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 0;
+  border-right: 1px solid var(--border);
+  background: #0b0d0f;
+  overflow: hidden;
+}
+
+.erdSidebarHeader {
+  padding: 18px 16px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.erdSidebarHeader h3 {
+  margin: 0 0 4px;
+  color: var(--text);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.erdSidebarHeader p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.erdSearch {
+  margin: 12px 16px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #111418;
+  color: var(--text);
+  font-size: 0.82rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.erdSearch:focus {
+  border-color: var(--accent);
+}
+
+.erdEntityList {
+  overflow-y: auto;
+  padding: 0 8px 8px;
+}
+
+.erdEntityItem {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-bottom: 2px;
+}
+
+.erdEntityItem:hover {
+  background: rgba(0, 204, 122, 0.08);
+}
+
+.erdEntityItem.active {
+  background: rgba(0, 204, 122, 0.12);
+  border: 1px solid rgba(0, 204, 122, 0.25);
+}
+
+.erdEntityItemName {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.erdEntityItemBadge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #1b1f24;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.erdSidebarFooter {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 6px;
+}
+
+.erdExportBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #111418;
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.erdExportBtn:hover {
+  border-color: var(--accent);
+  background: rgba(0, 204, 122, 0.08);
+  color: var(--accent);
+}
+
+/* Entity Node */
+.entityNode {
+  background: #0f1215;
+  border: 1px solid #24282d;
+  border-radius: 12px;
+  min-width: 260px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.entityNode:hover {
+  box-shadow: 0 4px 32px rgba(0, 204, 122, 0.12);
+  border-color: rgba(0, 204, 122, 0.3);
+}
+
+.entityNode.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 4px 32px rgba(0, 204, 122, 0.18);
+}
+
+.entityNodeHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, rgba(0, 204, 122, 0.1), rgba(0, 204, 122, 0.03));
+  border-bottom: 1px solid #24282d;
+}
+
+.entityNodeName {
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.entityNodeTable {
+  color: var(--muted);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #1b1f24;
+}
+
+.entityNodeFields {
+  padding: 4px 0;
+}
+
+.entityNodeField {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  transition: background 0.1s;
+  position: relative;
+}
+
+.entityNodeField:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.entityNodeField.pk {
+  color: #d9a400;
+}
+
+.entityNodeField.fk {
+  color: var(--accent);
+}
+
+.entityNodeField.unique {
+  color: var(--cyan);
+}
+
+.entityNodeFieldIcon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  display: grid;
+  place-items: center;
+}
+
+.entityNodeFieldName {
+  font-weight: 500;
+}
+
+.entityNodeFieldType {
+  color: #5a6570;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.7rem;
+  margin-left: auto;
+}
+
+.entityNodeHandles {
+  display: none;
+}
+
+.erdCanvas {
+  background: radial-gradient(ellipse at 50% 0%, rgba(0, 204, 122, 0.04), transparent 60%), #050607;
+}
+
+.erdToolbar {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+  display: flex;
+  gap: 6px;
+}
+
+.erdToolbarBtn {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #0f1215;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.erdToolbarBtn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(0, 204, 122, 0.08);
+}
+
+.erdEmpty {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.erdStats {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.erdStat {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #1b1f24;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.erdStat.highlight {
+  color: var(--accent);
+  background: rgba(0, 204, 122, 0.1);
+}
+
+/* Data Dictionary Page */
+.dictionaryPage {
+  padding: 32px 30px;
+  max-width: 1200px;
+}
+
+.dictionaryHeader {
+  margin-bottom: 24px;
+}
+
+.dictionaryHeader h2 {
+  margin-bottom: 4px;
+}
+
+.dictionaryHeader p {
+  color: var(--muted);
+}
+
+.dictionaryLegend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.dictionaryLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dictionaryCard {
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.dictionaryCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  cursor: pointer;
+  background: var(--surface-2);
+  transition: background 0.2s;
+  gap: 12px;
+}
+
+.dictionaryCardHeader:hover {
+  background: var(--surface);
+}
+
+.dictionaryCardHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dictionaryTable {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.8rem;
+  color: var(--muted);
+  background: var(--surface-2);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.dictionaryFieldCount,
+.dictionaryRelCount {
+  font-size: 0.75rem;
+  color: var(--muted);
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--surface);
+}
+
+.dictionaryCardBody {
+  padding: 0;
+}
+
+.dictionaryCardBody table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.dictionaryCardBody th {
+  text-align: left;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dictionaryCardBody td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+
+.dictionaryCardBody tr:last-child td {
+  border-bottom: none;
+}
+
+.dictionaryField {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.dictionaryFieldIcon {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.dictionaryFieldUnique {
+  color: #0ea5e9;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+.dictionaryFieldValidation {
+  color: #d9a400;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+.dictionaryFieldType {
+  color: var(--muted);
+  font-family: monospace;
+}
+
+.dictionaryFieldNull {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.dictionaryFieldDefault {
+  color: var(--muted);
+  font-family: monospace;
+  font-size: 0.8rem;
+}
+
+.dictionaryFieldDesc {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.dictionaryRelations {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: var(--surface-2);
+  font-size: 0.85rem;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+}
+
+.dictionaryRelTag {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.dictionaryEnums {
+  margin-top: 32px;
+}
+
+.dictionaryEnums h3 {
+  margin-bottom: 12px;
+}
+
+.enumCard {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  margin: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 0.82rem;
+}
+
+.enumCard strong {
+  color: var(--text);
+}
+
+.enumCard span {
+  color: var(--muted);
+}

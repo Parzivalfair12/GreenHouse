@@ -1,161 +1,225 @@
-# Greenhouse Manager
+# GreenHouse Manager
 
-Software academico para administrar un invernadero con backend Spring Boot, frontend React, autenticacion OAuth2, internacionalizacion, pruebas y documentacion.
+![Spring Boot](https://img.shields.io/badge/Spring_Boot_3.3.5-6DB33F?logo=springboot)
+![React](https://img.shields.io/badge/React_18-61DAFB?logo=react)
+![Java 21](https://img.shields.io/badge/Java_21-ED8B00?logo=openjdk)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql)
+![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker)
+![Flask](https://img.shields.io/badge/Flask_IA-000000?logo=flask)
+![JWT](https://img.shields.io/badge/JWT-000000?logo=jsonwebtokens)
+![OAuth2](https://img.shields.io/badge/OAuth2_Google-4285F4?logo=google)
+![Swagger](https://img.shields.io/badge/Swagger-85EA2D?logo=swagger)
+![JUnit](https://img.shields.io/badge/JUnit_5-25A162?logo=junit5)
+![Vitest](https://img.shields.io/badge/Vitest-6E9F18?logo=vitest)
+![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?logo=githubactions)
 
-## Modulos
+Sistema academico para la gestion inteligente de invernaderos agricolas. Combina **Spring Boot**, **React**, **IA predictiva con Flask** y **simulacion IoT** en una plataforma moderna con autenticacion OAuth2, dockerizacion y CI/CD.
 
-- `backend`: API REST Spring Boot para sensores, cultivos, riegos, alertas y usuarios.
-- `frontend`: aplicacion React para consultar el estado del invernadero.
-- `.github/workflows`: pipeline de pruebas para backend, frontend y pruebas Python.
-- `docs`: modelo JSON, entidad relacion, diccionario de datos y documentacion de la API.
-- `tests/python`: pruebas auxiliares para validar el modelo JSON.
+---
 
-## Requisitos
+## Arquitectura
 
-- JDK 21
-- Node.js 20 o superior
-- Python 3.11 o superior
-- Docker Desktop para levantar PostgreSQL localmente
+```mermaid
+graph TB
+    subgraph Frontend
+        REACT[React + Vite]
+        DARK[Dark Mode]
+        I18N[i18n ES/EN]
+    end
+    subgraph Backend
+        SB[Spring Boot 3]
+        JWT[JWT + OAuth2]
+        REST[REST API]
+        FLYWAY[Flyway Migrations]
+    end
+    subgraph IA
+        FLASK[Flask Microservice]
+        MODEL[scikit-learn Model]
+    end
+    subgraph IoT
+        SIM[Python Simulator]
+        SENSORS[Sensor Readings]
+    end
+    subgraph DevOps
+        DOCKER[Docker Compose]
+        GH[GitHub Actions]
+        SWAGGER[Swagger/OpenAPI]
+    end
+    
+    REACT -->|JWT Auth| REST
+    REST --> SB
+    SB --> FLYWAY
+    SB -->|HTTP| FLASK
+    SIM -->|POST /api/readings| REST
+    FLASK --> MODEL
+    DOCKER -->|Containers| SB
+    DOCKER -->|Containers| REACT
+    GH -->|CI/CD| SB
+    GH -->|CI/CD| REACT
+```
 
-## Ejecucion
+## Stack tecnologico
 
-### 1. Base de datos
+| Capa | Tecnologia | Version |
+|------|-----------|---------|
+| Frontend | React + Vite + Lucide | 18 / 8 |
+| Backend | Spring Boot + Spring Security | 3.3.5 |
+| Base de datos | PostgreSQL (prod) / H2 (test) | 16 |
+| ORM | Hibernate + Flyway | — |
+| Autenticacion | JWT + OAuth2 Google | — |
+| IA | Flask + scikit-learn | 3.11 |
+| IoT | Python simulator (requests) | 3.11 |
+| Testing | JUnit 5 + Vitest + Selenium + pytest | — |
+| CI/CD | GitHub Actions (4 jobs) | — |
+| Contenedores | Docker + Docker Compose | — |
+| Documentacion API | Swagger/OpenAPI | 2.6.0 |
 
-Opcion recomendada con Docker:
+## Modulos del sistema
+
+| Modulo | Descripcion | Tecnologia |
+|--------|-------------|------------|
+| `backend/` | API REST: 19 entidades JPA, 6 controllers, 5 servicios | Spring Boot 3 |
+| `frontend/` | SPA: 13 componentes, dashboard, dark mode, i18n | React 18 + Vite |
+| `frontend/src/config/modelo.json` | Single source of truth para ERD y diccionario | JSON |
+| `frontend/src/pages/ERD/` | ERD Viewer con React Flow + Data Dictionary | React Flow |
+| `ia/` | Microservicio IA: predicciones y recomendaciones | Flask + scikit-learn |
+| `iot/` | Simulador de sensores IoT | Python |
+| `tests/python/` | Validacion del modelo JSON | Python unittest |
+| `docs/` | Documentacion: ER, diccionario, mockups, API | Markdown |
+| `.github/workflows/` | CI/CD: 4 jobs de validacion | GitHub Actions |
+
+## Inicio rapido
 
 ```bash
-docker compose up -d
+# 1. Clonar e iniciar todo con Docker
+git clone https://github.com/.../greenhouse.git
+cd greenhouse
+docker compose up --build
+
+# 2. Acceder
+# Frontend: http://localhost:5173
+# Backend:  http://localhost:8080
+# Swagger:  http://localhost:8080/swagger-ui.html
+# Health:   http://localhost:8080/api/health
+
+# 3. Login: admin@greenhouse.local / admin1234
+
+# 4. IA (opcional, en otra terminal)
+cd ia
+pip install -r requirements.txt
+python app.py
+# Flask en http://localhost:5000
+
+# 5. IoT Simulator (opcional)
+cd iot
+pip install requests
+python simulador.py --interval 5
 ```
 
-Esto crea automaticamente:
+## API REST (Swagger)
 
-```text
-Database: greenhouse
-User: greenhouse_user
-Password: greenhouse_pass
-Port: 5432
-```
+La documentacion interactiva esta disponible en `/swagger-ui.html` con el backend corriendo.
 
-Opcion manual con pgAdmin o psql:
+### Endpoints principales
 
-1. Conectate como usuario administrador de PostgreSQL, por ejemplo `postgres`.
-2. Ejecuta el script:
+| Metodo | Ruta | Auth | Descripcion |
+|--------|------|------|-------------|
+| POST | `/api/auth/login` | Publico | Iniciar sesion (JWT) |
+| POST | `/api/auth/register` | Publico | Registrar usuario |
+| POST | `/api/auth/refresh` | JWT | Refrescar token |
+| POST | `/api/auth/forgot-password` | Publico | Recuperar password |
+| POST | `/api/auth/reset-password` | Token | Restablecer password |
+| POST | `/api/auth/verify` | Publico | Verificar email |
+| GET | `/api/greenhouses` | JWT | Listar invernaderos |
+| POST | `/api/greenhouses` | ADMIN | Crear invernadero |
+| GET | `/api/readings` | JWT | Obtener lecturas |
+| POST | `/api/readings` | OPERATOR | Registrar lectura |
+| PATCH | `/api/alerts/{id}/resolve` | OPERATOR | Resolver alerta |
+| GET | `/api/ia/health` | JWT | Estado IA |
+| POST | `/api/ia/predict` | JWT | Predecir temperatura/humedad |
+| POST | `/api/ia/recommend` | JWT | Recomendar accion |
+| GET | `/api/health` | Publico | Health check del sistema |
 
-```text
-docs/create-database.sql
-```
+### Seguridad por roles
 
-El backend crea/actualiza las tablas automaticamente con Hibernate usando `spring.jpa.hibernate.ddl-auto=update`.
-
-### 2. Backend
-
-PowerShell:
-
-```powershell
-cd backend
-$env:JAVA_HOME='C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot'
-$env:Path="$env:JAVA_HOME\bin;C:\Users\andre\Tools\apache-maven-3.9.15\bin;$env:Path"
-$env:GOOGLE_CLIENT_ID='demo-client'
-$env:GOOGLE_CLIENT_SECRET='demo-secret'
-mvn spring-boot:run
-```
-
-Bash:
-
-```bash
-cd backend
-export GOOGLE_CLIENT_ID=demo-client
-export GOOGLE_CLIENT_SECRET=demo-secret
-mvn spring-boot:run
-```
-
-El backend queda disponible en:
-
-```text
-http://localhost:8080
-```
-
-Swagger:
-
-```text
-http://localhost:8080/swagger-ui.html
-```
-
-### 3. Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev -- --port 5173
-```
-
-El frontend queda disponible en:
-
-```text
-http://localhost:5173
-```
-
-## OAuth2
-
-El backend incluye OAuth2 real con Google. En Google Cloud Console crea un OAuth Client de tipo `Web application` y agrega este redirect URI autorizado:
-
-```text
-http://localhost:8080/login/oauth2/code/google
-```
-
-Luego define estas variables antes de ejecutar el backend:
-
-```bash
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-FRONTEND_URL=http://localhost:5173
-```
-
-El boton `Continuar con Google` envia al usuario a Google, Spring Boot guarda o actualiza el usuario autenticado en `app_user` con `provider = google`, y despues redirige al frontend.
+| Rol | Acceso |
+|-----|--------|
+| `VIEWER` | Lectura de datos, dashboard, IA |
+| `OPERATOR` | Lectura + escritura sensores, alertas, riegos |
+| `ADMIN` | Acceso completo: usuarios, configuracion, CRUD invernaderos |
 
 ## Pruebas
 
 ```bash
+# Backend (JUnit 5 + MockMvc)
 cd backend && mvn test
+
+# Frontend (Vitest)
 cd frontend && npm test
+
+# Frontend (Selenium E2E)
+cd frontend && npm run test:selenium
+
+# IA (pytest)
+cd ia && pytest
+
+# Validacion modelo JSON
 python -m unittest discover -s tests/python
+
+# ERD + Data Dictionary tests (Vitest)
+cd frontend && npx vitest run src/pages/ERD/__tests__/
+
+# ERD Selenium E2E
+cd frontend && node test/selenium/erd.test.js
+
+# CI/CD (GitHub Actions)
+# Push a main/master ejecuta automaticamente:
+# - Backend JUnit
+# - Frontend Vitest + ESLint + Build
+# - Python Model Validation
+# - Python IA Tests
 ```
 
-## Base De Datos PostgreSQL
+## Despliegue
 
-El backend usa PostgreSQL por defecto:
+| Servicio | Plataforma | Documentacion |
+|----------|-----------|---------------|
+| Frontend | Vercel | `DEPLOY.md` |
+| Backend | Railway | `DEPLOY.md` |
+| Base de datos | Neon PostgreSQL | `DEPLOY.md` |
+| IA | Render o Railway | `DEPLOY.md` |
 
-```text
-Host: localhost
-Port: 5432
-Database: greenhouse
-User: greenhouse_user
-Password: greenhouse_pass
-JDBC URL: jdbc:postgresql://localhost:5432/greenhouse
-```
+## Documentacion adicional
 
-Para levantar la base:
+| Archivo | Contenido |
+|---------|-----------|
+| `docs/entidad-relacion.md` | Diagrama entidad-relacion (Mermaid) |
+| `docs/diccionario-datos.md` | Diccionario de datos completo |
+| `docs/modelo-invernadero.json` | Modelo JSON de datos |
+| `docs/ia.md` | Arquitectura del modulo IA |
+| `docs/iot.md` | Arquitectura del simulador IoT |
+| `docs/api.md` | Documentacion de endpoints |
+| `docs/mockups/` | Screenshots del sistema |
+| `docs/taiga-historias.md` | Historias de usuario (Taiga) |
+| `DEPLOY.md` | Guia completa de despliegue |
+| `frontend/src/config/modelo.json` | Single source of truth del modelo de datos |
+| `frontend/src/config/modelParser.js` | Parser automatico: FK detection, edges, relaciones, cardinalidades |
+| `frontend/src/pages/ERD/` | ERD Viewer (React Flow) y Data Dictionary dinamico |
 
-```bash
-docker compose up -d
-```
+## Evidencia academica
 
-Tambien existe el script manual:
+- **Swagger/OpenAPI**: Documentacion interactiva en `/swagger-ui.html`
+- **GitHub Actions**: Pipeline CI/CD con 4 jobs de validacion
+- **Testing**: JUnit (16 tests), Vitest (34 tests), pytest (8 tests), Selenium (6 tests)
+- **Docker**: `docker compose up --build` levanta el sistema completo
+- **IA**: Predicciones con regresion lineal (scikit-learn)
+- **IoT**: Simulacion de sensores con generacion de anomalias
+- **Auth**: JWT + OAuth2 Google + Refresh tokens + Verify email + Forgot password
+- **ERD Dinamico**: Diagrama entidad-relacion generado desde `modelo.json` con React Flow
+- **Data Dictionary**: Diccionario de datos dinamico con FK, PK, enums, validaciones
+- **Parser Automatico**: Deteccion de FK, generacion de edges y cardinalidades desde JSON
+- **Exportacion**: Exportacion de metadata a JSON y Schema SQL
 
-```text
-docs/create-database.sql
-```
+---
 
-Las pruebas JUnit usan H2 con el perfil `test`, asi no dependen de Docker.
-
-## Usuarios Y Login
-
-La autenticacion guarda usuarios en la tabla `app_user` de PostgreSQL. Al iniciar el backend se crea este usuario administrador:
-
-```text
-Email: admin@greenhouse.local
-Password: admin1234
-Role: ADMIN
-```
-
-El login con correo solo permite entrar si el usuario existe en `app_user` y la contrasena coincide con `password_hash`. Para revisar los usuarios en pgAdmin, abre la base `greenhouse`, entra a `Schemas > public > Tables > app_user` y usa `View/Edit Data`.
+**Proyecto academico — Ingenieria de Sistemas**

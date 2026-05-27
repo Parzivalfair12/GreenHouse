@@ -1,12 +1,12 @@
 export function Navbar({ sections, activeSection, onChange, alertsCount = 0 }) {
   return (
     <nav className="navbar" aria-label="Secciones principales">
-      {sections.map(({ id, label, icon: Icon }) => (
+      {sections.map(({ id, label, icon: Icon, action }) => (
         <button
           className={activeSection === id ? 'navItem active' : 'navItem'}
           key={id}
           type="button"
-          onClick={() => onChange(id)}
+          onClick={() => action ? action() : onChange(id)}
         >
           <Icon size={18} aria-hidden="true" />
           <span>{label}</span>
