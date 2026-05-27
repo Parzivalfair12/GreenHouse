@@ -1,5 +1,7 @@
 package com.example.greenhouse.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -19,15 +21,19 @@ import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames;
 @Configuration
 @ConditionalOnProperty(name = "app.oauth2.enabled", havingValue = "true")
 public class OAuth2ClientConfig {
+  private static final Logger log = LoggerFactory.getLogger(OAuth2ClientConfig.class);
 
   @Bean
   public ClientRegistrationRepository clientRegistrationRepository(
       @Value("${GOOGLE_CLIENT_ID}") String clientId,
       @Value("${GOOGLE_CLIENT_SECRET}") String clientSecret,
-      @Value("${app.frontend-url:http://localhost:5173}") String frontendUrl) {
+      @Value("${app.oauth2.redirect-uri:}") String redirectUriOverride) {
 
-    String baseUrl = frontendUrl.replaceAll("/+$", "");
-    String redirectUri = baseUrl + "/login/oauth2/code/google";
+    // Hardcode exact redirect URI to eliminate mismatch with Google Cloud Console
+    String redirectUri = "http://localhost:8080/login/oauth2/code/google";
+
+    log.info("OAuth2 redirect URI hardcoded: {}", redirectUri);
+    log.info("OAuth2 client ID starts with: {}...", clientId.length() > 8 ? clientId.substring(0, 8) : clientId);
 
     ClientRegistration google = ClientRegistration.withRegistrationId("google")
         .clientId(clientId)

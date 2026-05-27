@@ -11,6 +11,8 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -21,6 +23,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+  private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
   private final JwtTokenProvider jwtTokenProvider;
   private final ObjectMapper objectMapper;
@@ -57,6 +60,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
       } catch (ExpiredJwtException e) {
         SecurityContextHolder.clearContext();
+        log.debug("Expired JWT on request {}: {}", request.getRequestURI(), e.getMessage());
         response.setStatus(401);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         var error = new ApiErrorResponse(
@@ -66,6 +70,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "Token expirado. Por favor inicie sesion nuevamente.",
             request.getRequestURI());
         objectMapper.writeValue(response.getWriter(), error);
+        return;
+      } catch (Exception e) {
+        SecurityContextHolder.clearContext();
+        log.warn("JWT processing error on request {}: {}", request.getRequestURI(), e.getMessage());
+        filterChain.doFilter(request, response);
         return;
       }
     }

@@ -17,6 +17,8 @@ import com.example.greenhouse.repository.AppUserRepository;
 import com.example.greenhouse.repository.GreenhouseRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
@@ -26,6 +28,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 /** Inserts demo data that matches the documented JSON model. */
 @Configuration
 public class DataSeeder {
+  private static final Logger log = LoggerFactory.getLogger(DataSeeder.class);
   @Value("${greenhouse.seeder.admin-password:admin1234}")
   private String adminPassword;
 
@@ -35,15 +38,31 @@ public class DataSeeder {
       AppUserRepository users,
       PasswordEncoder passwordEncoder) {
     return args -> {
-      users.findByEmail("admin@greenhouse.local").orElseGet(() -> {
-        AppUser admin = new AppUser();
-        admin.email = "admin@greenhouse.local";
-        admin.fullName = "Administrador";
-        admin.passwordHash = passwordEncoder.encode(adminPassword);
-        admin.provider = "email";
-        admin.role = UserRole.ADMIN;
-        return users.save(admin);
+      AppUser admin = users.findByEmail("admin@greenhouse.local").orElseGet(() -> {
+        AppUser u = new AppUser();
+        u.email = "admin@greenhouse.local";
+        u.fullName = "Administrador";
+        u.passwordHash = passwordEncoder.encode(adminPassword);
+        u.provider = "email";
+        u.role = UserRole.ADMIN;
+        u.verified = true;
+        return u;
       });
+      // Ensure existing admin has correct credentials and verified flag
+      if (!passwordEncoder.matches(adminPassword, admin.passwordHash)) {
+        admin.passwordHash = passwordEncoder.encode(adminPassword);
+        log.info("Updated admin password hash");
+      }
+      if (!admin.verified) {
+        admin.verified = true;
+        log.info("Marked existing admin as verified");
+      }
+      if (!"ADMIN".equals(admin.role.name())) {
+        admin.role = UserRole.ADMIN;
+        log.info("Restored admin role for: {}", admin.email);
+      }
+      users.save(admin);
+      log.info("Admin user ensured: {}, role: {}, verified: {}", admin.email, admin.role, admin.verified);
 
       if (repository.count() > 0) {
         return;

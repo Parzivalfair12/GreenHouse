@@ -10,11 +10,14 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
 import javax.crypto.SecretKey;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
 public class JwtTokenProvider {
+  private static final Logger log = LoggerFactory.getLogger(JwtTokenProvider.class);
 
   private final SecretKey secretKey;
   private final long expirationMs;
@@ -22,6 +25,9 @@ public class JwtTokenProvider {
   public JwtTokenProvider(
       @Value("${app.jwt-secret}") String secret,
       @Value("${app.jwt-expiration-ms}") long expirationMs) {
+    if (secret == null || secret.isBlank() || secret.length() < 32) {
+      throw new IllegalArgumentException("JWT secret must be at least 32 characters long");
+    }
     this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     this.expirationMs = expirationMs;
   }
@@ -31,6 +37,7 @@ public class JwtTokenProvider {
     return Jwts.builder()
         .subject(user.email)
         .claim("roles", List.of("ROLE_" + user.role.name()))
+        .claim("verified", user.verified)
         .issuedAt(now)
         .expiration(new Date(now.getTime() + expirationMs))
         .signWith(secretKey)
@@ -46,13 +53,26 @@ public class JwtTokenProvider {
     return parseClaims(token).get("roles", List.class);
   }
 
+  public boolean isTokenExpired(String token) {
+    try {
+      Date expiration = parseClaims(token).getExpiration();
+      return expiration.before(new Date());
+    } catch (ExpiredJwtException e) {
+      return true;
+    } catch (JwtException | IllegalArgumentException e) {
+      return true;
+    }
+  }
+
   public boolean validateToken(String token) {
     try {
       parseClaims(token);
       return true;
     } catch (ExpiredJwtException e) {
+      log.debug("JWT expired: {}", e.getMessage());
       throw e;
     } catch (JwtException | IllegalArgumentException e) {
+      log.warn("Invalid JWT: {}", e.getMessage());
       return false;
     }
   }

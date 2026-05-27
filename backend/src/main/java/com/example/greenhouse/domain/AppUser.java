@@ -36,4 +36,12 @@ public class AppUser {
   public UserRole role = UserRole.VIEWER;
 
   public boolean verified;
+
+  public String verificationToken;
+
+  public java.time.Instant verificationTokenExpiry;
+
+  public String resetToken;
+
+  public java.time.Instant resetTokenExpiry;
 }

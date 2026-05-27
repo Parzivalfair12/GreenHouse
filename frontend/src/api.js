@@ -16,10 +16,15 @@ export function clearStoredSession() {
 }
 
 let onUnauthorizedCallback = null;
+let onUnverifiedCallback = null;
 let refreshAttempted = false;
 
 export function setOnUnauthorized(callback) {
   onUnauthorizedCallback = callback;
+}
+
+export function setOnUnverified(callback) {
+  onUnverifiedCallback = callback;
 }
 
 function triggerUnauthorized() {
@@ -29,26 +34,34 @@ function triggerUnauthorized() {
   }
 }
 
+function triggerUnverified() {
+  if (onUnverifiedCallback) {
+    onUnverifiedCallback();
+  }
+}
+
 async function tryRefreshToken() {
   if (refreshAttempted) return false;
   refreshAttempted = true;
   try {
     const session = getStoredSession();
-    if (!session?.token) return false;
+    const headers = { 'Content-Type': 'application/json' };
+    // Send Bearer token if available, otherwise rely on httpOnly cookie
+    if (session?.token) {
+      headers['Authorization'] = `Bearer ${session.token}`;
+    }
     const response = await fetch(getApiUrl('/api/auth/refresh'), {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${session.token}`,
-        'Content-Type': 'application/json'
-      },
+      headers,
       credentials: 'include'
     });
     if (!response.ok) return false;
     const data = await response.json();
     if (data.token) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        ...session,
-        token: data.token
+        ...(session || {}),
+        token: data.token,
+        verified: data.verified ?? session?.verified
       }));
       refreshAttempted = false;
       return true;
@@ -78,7 +91,51 @@ function authHeaders(extra = {}) {
   return extra;
 }
 
-// --- HTTP helpers (centralizados, con auth automático) ---
+async function parseError(response) {
+  try {
+    const data = await response.json();
+    if (data.message) return data.message;
+    if (data.error) return data.error;
+    if (Array.isArray(data.errors)) return data.errors.map(e => e.defaultMessage || e).join(', ');
+    return JSON.stringify(data);
+  } catch {
+    return `HTTP ${response.status}`;
+  }
+}
+
+async function handleAuthErrors(response, shouldRefresh = true) {
+  const status = response.status;
+
+  // 401: try refresh once, then logout if still 401
+  if (status === 401 && shouldRefresh) {
+    const refreshed = await tryRefreshToken();
+    if (refreshed) {
+      return { retry: true };
+    }
+    triggerUnauthorized();
+    const msg = await parseError(response);
+    throw new Error(msg || `Session expired: ${status}`);
+  }
+
+  // 403: forbidden (authenticated but no permission) — NEVER logout
+  if (status === 403) {
+    const msg = await parseError(response);
+    if (msg.toLowerCase().includes('verif')) {
+      triggerUnverified();
+    }
+    throw new Error(msg || `Access denied: ${status}`);
+  }
+
+  // 429: rate limited
+  if (status === 429) {
+    const msg = await parseError(response);
+    throw new Error(msg || 'Too many requests. Please try again later.');
+  }
+
+  return null;
+}
+
+// --- HTTP helpers (centralizados, con auth automatico) ---
 
 async function sendJson(path, method, body) {
   const url = getApiUrl(path);
@@ -91,26 +148,22 @@ async function sendJson(path, method, body) {
     credentials: 'include',
     body: JSON.stringify(body)
   });
-  if (response.status === 401) {
-    const refreshed = await tryRefreshToken();
-    if (refreshed) {
-      response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          ...authHeaders()
-        },
-        credentials: 'include',
-        body: JSON.stringify(body)
-      });
-    }
-  }
-  if (response.status === 401 || response.status === 403) {
-    triggerUnauthorized();
-    throw new Error(`Request failed: ${response.status}`);
+  const authResult = await handleAuthErrors(response);
+  if (authResult?.retry) {
+    response = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders()
+      },
+      credentials: 'include',
+      body: JSON.stringify(body)
+    });
+    const retryResult = await handleAuthErrors(response, false);
+    if (retryResult?.retry) return; // should not happen
   }
   if (!response.ok) {
-    const errText = await response.text().catch(() => `HTTP ${response.status}`);
+    const errText = await parseError(response);
     throw new Error(errText || `Request failed: ${response.status}`);
   }
   return response.json();
@@ -119,18 +172,14 @@ async function sendJson(path, method, body) {
 async function fetchJson(path) {
   const url = getApiUrl(path);
   let response = await fetch(url, { headers: authHeaders(), credentials: 'include' });
-  if (response.status === 401) {
-    const refreshed = await tryRefreshToken();
-    if (refreshed) {
-      response = await fetch(url, { headers: authHeaders(), credentials: 'include' });
-    }
-  }
-  if (response.status === 401 || response.status === 403) {
-    triggerUnauthorized();
-    throw new Error(`Session expired: ${response.status}`);
+  const authResult = await handleAuthErrors(response);
+  if (authResult?.retry) {
+    response = await fetch(url, { headers: authHeaders(), credentials: 'include' });
+    const retryResult = await handleAuthErrors(response, false);
+    if (retryResult?.retry) return;
   }
   if (!response.ok) {
-    const errText = await response.text().catch(() => `HTTP ${response.status}`);
+    const errText = await parseError(response);
     throw new Error(errText || `Request failed: ${response.status}`);
   }
   return response.json();
@@ -139,18 +188,14 @@ async function fetchJson(path) {
 async function deleteJson(path) {
   const url = getApiUrl(path);
   let response = await fetch(url, { method: 'DELETE', headers: authHeaders(), credentials: 'include' });
-  if (response.status === 401) {
-    const refreshed = await tryRefreshToken();
-    if (refreshed) {
-      response = await fetch(url, { method: 'DELETE', headers: authHeaders(), credentials: 'include' });
-    }
-  }
-  if (response.status === 401 || response.status === 403) {
-    triggerUnauthorized();
-    throw new Error(`Session expired: ${response.status}`);
+  const authResult = await handleAuthErrors(response);
+  if (authResult?.retry) {
+    response = await fetch(url, { method: 'DELETE', headers: authHeaders(), credentials: 'include' });
+    const retryResult = await handleAuthErrors(response, false);
+    if (retryResult?.retry) return;
   }
   if (!response.ok) {
-    const errText = await response.text().catch(() => `HTTP ${response.status}`);
+    const errText = await parseError(response);
     throw new Error(errText || `Request failed: ${response.status}`);
   }
 }
@@ -168,8 +213,13 @@ export function getApiUrl(path) {
 }
 
 export function beginGoogleOAuth() {
-  const base = API_BASE || 'http://localhost:8080';
-  window.location.assign(`${base}/oauth2/authorization/google`);
+  // Navigate from the frontend's own domain so the OAuth callback
+  // returns to the same origin. This ensures the JWT cookie is set
+  // for the frontend domain and is sent on subsequent API calls.
+  // nginx or Vite proxy forwards /oauth2/ to the backend.
+  const base = API_BASE || window.location.origin || 'http://localhost:5173';
+  const redirectUrl = `${base.replace(/\/+$/, '')}/oauth2/authorization/google`;
+  window.location.assign(redirectUrl);
 }
 
 export function refreshToken() {
@@ -186,6 +236,10 @@ export function resetPassword(token, password) {
 
 export function verifyEmail(token) {
   return sendJson('/api/auth/verify', 'POST', { token });
+}
+
+export function verifyEmailGet(token) {
+  return fetch(getApiUrl(`/api/auth/verify-email?token=${encodeURIComponent(token)}`));
 }
 
 export function resendVerification() {
@@ -350,22 +404,17 @@ export async function resolveAlert(alertId) {
     headers: authHeaders(),
     credentials: 'include'
   });
-  if (response.status === 401) {
-    const refreshed = await tryRefreshToken();
-    if (refreshed) {
-      response = await fetch(url, {
-        method: 'PATCH',
-        headers: authHeaders(),
-        credentials: 'include'
-      });
-    }
-  }
-  if (response.status === 401 || response.status === 403) {
-    triggerUnauthorized();
-    throw new Error(`Session expired: ${response.status}`);
+  const authResult = await handleAuthErrors(response);
+  if (authResult?.retry) {
+    response = await fetch(url, {
+      method: 'PATCH',
+      headers: authHeaders(),
+      credentials: 'include'
+    });
+    await handleAuthErrors(response, false);
   }
   if (!response.ok) {
-    const errText = await response.text().catch(() => `HTTP ${response.status}`);
+    const errText = await parseError(response);
     throw new Error(errText || `Request failed: ${response.status}`);
   }
   return response.json();
@@ -445,3 +494,4 @@ export async function stopSimulator() {
 export async function fetchSimulatorStatus() {
   return fetchJson('/api/simulator/status');
 }
+

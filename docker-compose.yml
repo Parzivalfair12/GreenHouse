@@ -27,7 +27,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      SPRING_PROFILES_ACTIVE: dev
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
       DB_URL: jdbc:postgresql://postgres:5432/greenhouse
       DB_USERNAME: greenhouse_user
       DB_PASSWORD: ${DB_PASSWORD:-greenhouse_pass}
@@ -36,13 +36,27 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       OAUTH2_ENABLED: ${OAUTH2_ENABLED:-false}
+      OAUTH2_REDIRECT_URI: ${OAUTH2_REDIRECT_URI:-}
+      OAUTH2_ADMIN_EMAILS: ${OAUTH2_ADMIN_EMAILS:-}
       IA_URL: ${IA_URL:-http://greenhouse-ia:5000}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin_dev_change_me}
       EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
+      SMTP_HOST: ${SMTP_HOST:-localhost}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_AUTH: ${SMTP_AUTH:-false}
+      SMTP_TLS: ${SMTP_TLS:-false}
     ports:
       - "8080:8080"
     networks:
       - greenhouse-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
 
   ia:
     build: ./ia
@@ -61,15 +75,26 @@ services:
       - "5000:5000"
     networks:
       - greenhouse-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
 
   frontend:
     build: ./frontend
     container_name: greenhouse-frontend
     restart: unless-stopped
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-}
     ports:
       - "5173:80"
     networks:
       - greenhouse-net
+    depends_on:
+      backend:
+        condition: service_healthy
 
 volumes:
   greenhouse_postgres_data:

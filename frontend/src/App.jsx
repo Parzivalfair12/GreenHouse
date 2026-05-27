@@ -50,8 +50,11 @@ import {
   startSimulator,
   stopSimulator,
   setOnUnauthorized,
+  setOnUnverified,
+  resendVerification,
   clearStoredSession,
   getStoredSession,
+  getApiUrl,
 } from './api.js';
 import { AlertsSection } from './components/AlertsSection.jsx';
 import { ArchitectureSection } from './components/ArchitectureSection.jsx';
@@ -117,6 +120,7 @@ export function App() {
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(null);
   const [simulatorRunning, setSimulatorRunning] = useState(false);
+  const [unverifiedBanner, setUnverifiedBanner] = useState(false);
   const t = dictionary[language];
 
   function toggleTheme() {
@@ -126,7 +130,7 @@ export function App() {
   async function refresh() {
     setApiError(null);
     try {
-      const [greenhouseData, alertData, userData, dashboardData, zoneData, sensorData, readingData, actuatorData, ruleData, logData] = await Promise.all([
+      const results = await Promise.allSettled([
         fetchGreenhouses(),
         fetchAlerts(),
         fetchUsers(),
@@ -138,28 +142,43 @@ export function App() {
         fetchRules(),
         fetchAuditLogs()
       ]);
-      setGreenhouses(greenhouseData);
-      setAlerts(alertData);
-      setUsers(userData);
-      setDashboard(dashboardData);
-      setZones(zoneData);
-      setAllSensors(sensorData);
-      setReadings(readingData);
-      setActuators(actuatorData);
-      setRules(ruleData);
-      setLogs(logData);
-      setSelectedId((current) => {
-        if (greenhouseData.some((greenhouse) => greenhouse.id === current)) return current;
-        return pickDefaultGreenhouseId(greenhouseData, sensorData, readingData);
-      });
+
+      const [greenhouseResult, alertResult, userResult, dashboardResult,
+        zoneResult, sensorResult, readingResult, actuatorResult, ruleResult, logResult] = results;
+
+      if (greenhouseResult.status === 'fulfilled') setGreenhouses(greenhouseResult.value);
+      if (alertResult.status === 'fulfilled') setAlerts(alertResult.value);
+      if (userResult.status === 'fulfilled') setUsers(userResult.value);
+      if (dashboardResult.status === 'fulfilled') setDashboard(dashboardResult.value);
+      if (zoneResult.status === 'fulfilled') setZones(zoneResult.value);
+      if (sensorResult.status === 'fulfilled') setAllSensors(sensorResult.value);
+      if (readingResult.status === 'fulfilled') setReadings(readingResult.value);
+      if (actuatorResult.status === 'fulfilled') setActuators(actuatorResult.value);
+      if (ruleResult.status === 'fulfilled') setRules(ruleResult.value);
+      if (logResult.status === 'fulfilled') setLogs(logResult.value);
+
+      // Use greenhouse data to select default greenhouse
+      if (greenhouseResult.status === 'fulfilled') {
+        setSelectedId((current) => {
+          if (greenhouseResult.value.some((greenhouse) => greenhouse.id === current)) return current;
+          return pickDefaultGreenhouseId(greenhouseResult.value,
+            sensorResult.status === 'fulfilled' ? sensorResult.value : [],
+            readingResult.status === 'fulfilled' ? readingResult.value : []);
+        });
+      }
     } catch (err) {
-      setApiError(err.message || t.loadError);
+      // Only set apiError for session/auth failures (401), not permission errors (403)
+      if (err.message?.includes('401') || err.message?.includes('Session expired')) {
+        setApiError(err.message || t.loadError);
+      }
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('oauth') === 'google') return;
     if (session) {
       refresh();
       fetchSimulatorStatus().then((s) => setSimulatorRunning(s.running)).catch(() => {});
@@ -168,6 +187,8 @@ export function App() {
 
   useEffect(() => {
     if (!session || apiError) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('oauth') === 'google') return;
     const interval = setInterval(() => {
       refresh();
     }, 5000);
@@ -179,7 +200,13 @@ export function App() {
       clearStoredSession();
       setSession(null);
     });
-    return () => setOnUnauthorized(null);
+    setOnUnverified(() => {
+      setUnverifiedBanner(true);
+    });
+    return () => {
+      setOnUnauthorized(null);
+      setOnUnverified(null);
+    };
   }, []);
 
   useEffect(() => {
@@ -188,21 +215,35 @@ export function App() {
 
     if (params.get('status') === 'success') {
       fetchCurrentOAuthUser()
-        .then((user) => {
+        .then(async (user) => {
+          try {
+            const tokenResponse = await fetch(getApiUrl('/api/auth/refresh'), {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' }
+            });
+            if (tokenResponse.ok) {
+              const tokenData = await tokenResponse.json();
+              user.token = tokenData.token;
+              user.verified = tokenData.verified;
+            }
+          } catch {
+            // Token refresh failed; user can still use cookie auth
+          }
           saveSession(user);
           clearOAuthQuery();
         })
         .catch(() => {
-          setLoginError(t.invalidLogin);
+          setLoginError('Error de autenticacion OAuth');
           clearOAuthQuery();
         });
     } else if (params.get('status') === 'error') {
-      setLoginError(params.get('message') ?? t.invalidLogin);
+      setLoginError(params.get('message') ?? 'Error de autenticacion OAuth');
       clearOAuthQuery();
     } else {
       clearOAuthQuery();
     }
-  }, [t.invalidLogin]);
+  }, []);
 
   const selected = greenhouses.find((greenhouse) => greenhouse.id === selectedId) ?? greenhouses[0];
   const totals = useMemo(() => ({
@@ -253,10 +294,27 @@ export function App() {
   async function handleLogin(credentials) {
     try {
       setLoginError('');
+      setUnverifiedBanner(false);
       const user = await loginWithEmail(credentials);
       saveSession(user);
-    } catch {
-      setLoginError(t.invalidLogin);
+    } catch (err) {
+      if (err.message?.toLowerCase().includes('verif')) {
+        setLoginError(t.accountNotVerified);
+        setUnverifiedBanner(true);
+      } else if (err.message?.toLowerCase().includes('too many requests') || err.message?.toLowerCase().includes('demasiados')) {
+        setLoginError(err.message);
+      } else {
+        setLoginError(t.invalidLogin);
+      }
+    }
+  }
+
+  async function handleResendVerification() {
+    try {
+      await resendVerification();
+      setLoginError(t.resetSent || 'Correo enviado');
+    } catch (err) {
+      setLoginError(err.message || 'Error al reenviar');
     }
   }
 
@@ -268,6 +326,7 @@ export function App() {
   function saveSession(user) {
     localStorage.setItem('greenhouse-session', JSON.stringify(user));
     setSession(user);
+    setUnverifiedBanner(!user.verified && user.provider === 'email');
   }
 
   function handleLogout() {
@@ -423,7 +482,9 @@ export function App() {
           t={t}
           onLogin={handleLogin}
           onGoogleLogin={handleGoogleLogin}
+          onResendVerification={handleResendVerification}
           error={loginError}
+          unverified={unverifiedBanner}
         />
       </div>
     );
@@ -455,6 +516,14 @@ export function App() {
       <section className="mainArea">
         <AppHeader language={language} setLanguage={setLanguage} session={session} t={t} onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme} />
         <ToastContainer />
+        {session && !session.verified && session.provider === 'email' && (
+          <div className="verificationBanner" style={{ background: '#b45309', color: '#fff', padding: '10px 16px', textAlign: 'center', fontSize: '14px' }}>
+            {t.accountNotVerified}{' '}
+            <button type="button" onClick={handleResendVerification} style={{ background: 'transparent', border: '1px solid #fff', color: '#fff', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', marginLeft: '8px' }}>
+              {t.resendVerification}
+            </button>
+          </div>
+        )}
 
       {loading && (
         <div className="loadingOverlay">
@@ -573,7 +642,13 @@ export function App() {
 }
 
 function useStoredSession() {
-  return useState(getStoredSession);
+  return useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('oauth') === 'google') {
+      return null;
+    }
+    return getStoredSession();
+  });
 }
 
 function clearOAuthQuery() {

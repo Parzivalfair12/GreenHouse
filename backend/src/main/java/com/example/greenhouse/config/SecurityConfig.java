@@ -23,9 +23,15 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
   private final JwtAuthenticationFilter jwtAuthFilter;
+  private final RateLimitingFilter rateLimitingFilter;
+  private final SecurityHeadersFilter securityHeadersFilter;
 
-  public SecurityConfig(JwtAuthenticationFilter jwtAuthFilter) {
+  public SecurityConfig(JwtAuthenticationFilter jwtAuthFilter,
+      RateLimitingFilter rateLimitingFilter,
+      SecurityHeadersFilter securityHeadersFilter) {
     this.jwtAuthFilter = jwtAuthFilter;
+    this.rateLimitingFilter = rateLimitingFilter;
+    this.securityHeadersFilter = securityHeadersFilter;
   }
 
   @Bean
@@ -33,6 +39,9 @@ public class SecurityConfig {
       OAuth2LoginSuccessHandler successHandler,
       @Autowired(required = false) ClientRegistrationRepository clientRegistrationRepository) throws Exception {
     http
+        // Rate limiting and security headers run before everything else
+        .addFilterBefore(securityHeadersFilter, UsernamePasswordAuthenticationFilter.class)
+        .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
         // CSRF disabled for /api/** because this is a stateless REST API using JWT Bearer tokens.
         // The JWT is sent in Authorization header for programmatic access (login, register, CRUD).
         // CSRF remains active for non-API endpoints (e.g., OAuth2 callback paths).
@@ -47,8 +56,11 @@ public class SecurityConfig {
             .requestMatchers("/api/auth/register").permitAll()
             .requestMatchers("/api/auth/forgot-password").permitAll()
             .requestMatchers("/api/auth/reset-password").permitAll()
+            .requestMatchers("/api/auth/verify-email").permitAll()
+            .requestMatchers("/api/auth/verify").permitAll()
             .requestMatchers("/api/public/**").permitAll()
             .requestMatchers("/api/health").permitAll()
+            .requestMatchers("/api/debug/**").permitAll()
             .requestMatchers("/error", "/swagger-ui/**", "/v3/api-docs/**", "/h2-console/**").permitAll()
 
             .requestMatchers(HttpMethod.POST, "/api/users/**").hasRole("ADMIN")

@@ -31,6 +31,8 @@ app:
   jwt-expiration-ms: 86400000
   oauth2:
     enabled: ${OAUTH2_ENABLED:false}
+    redirect-uri: ${OAUTH2_REDIRECT_URI:}
+    admin-emails: ${OAUTH2_ADMIN_EMAILS:}
 
 greenhouse:
   seeder:

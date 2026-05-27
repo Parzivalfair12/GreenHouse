@@ -21,9 +21,9 @@ spring:
     properties:
       mail:
         smtp:
-          auth: false
+          auth: ${SMTP_AUTH:false}
           starttls:
-            enable: false
+            enable: ${SMTP_TLS:false}
 
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
@@ -32,6 +32,8 @@ app:
   jwt-expiration-ms: 86400000
   oauth2:
     enabled: ${OAUTH2_ENABLED:false}
+    redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:8080/login/oauth2/code/google}
+    admin-emails: ${OAUTH2_ADMIN_EMAILS:}
 
 greenhouse:
   seeder:

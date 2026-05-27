@@ -43,13 +43,16 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
     if (user != null) {
       String token = jwtTokenProvider.generateToken(user);
       boolean isSecure = frontendUrl.startsWith("https");
-      ResponseCookie cookie = ResponseCookie.from("jwt", token)
+      ResponseCookie.ResponseCookieBuilder cookieBuilder = ResponseCookie.from("jwt", token)
           .httpOnly(true)
           .secure(isSecure)
           .sameSite("Lax")
           .path("/")
-          .maxAge(Duration.ofDays(1))
-          .build();
+          .maxAge(Duration.ofDays(1));
+      if (frontendUrl.contains("localhost")) {
+        cookieBuilder.domain("localhost");
+      }
+      ResponseCookie cookie = cookieBuilder.build();
       response.addHeader("Set-Cookie", cookie.toString());
       response.sendRedirect(frontendUrl + "?oauth=google&status=success");
     } else {

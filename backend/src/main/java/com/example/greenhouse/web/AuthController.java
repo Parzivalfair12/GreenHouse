@@ -19,6 +19,7 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -57,24 +59,36 @@ public class AuthController {
   @Operation(summary = "Iniciar sesion", description = "Autentica con email y password, devuelve JWT")
   @ApiResponses({
       @ApiResponse(responseCode = "200", description = "Login exitoso, token JWT generado"),
-      @ApiResponse(responseCode = "401", description = "Credenciales invalidas")
+      @ApiResponse(responseCode = "401", description = "Credenciales invalidas"),
+      @ApiResponse(responseCode = "403", description = "Cuenta no verificada")
   })
   @PostMapping("/login")
   public LoginResponse login(@Valid @RequestBody LoginRequest request) {
     AppUser user = service.login(request);
     String token = jwtTokenProvider.generateToken(user);
     return new LoginResponse(token, user.email, user.fullName,
-        List.of("ROLE_" + user.role.name()), expirationMs / 1000);
+        List.of("ROLE_" + user.role.name()), expirationMs / 1000, user.verified);
   }
 
-  @Operation(summary = "Registrar usuario", description = "Crea un nuevo usuario en la base de datos")
+  @Operation(summary = "Registrar usuario", description = "Crea un nuevo usuario en la base de datos y envia correo de verificacion")
   @ApiResponses({
       @ApiResponse(responseCode = "200", description = "Usuario registrado exitosamente"),
       @ApiResponse(responseCode = "409", description = "El correo ya existe")
   })
   @PostMapping("/register")
-  public UserResponse register(@Valid @RequestBody UserCreateRequest request) {
-    return UserResponse.from(service.register(request));
+  public ResponseEntity<?> register(@Valid @RequestBody UserCreateRequest request) {
+    AppUser user = service.register(request);
+    if (emailEnabled) {
+      emailService.sendVerificationEmail(user.email, user.fullName, user.verificationToken);
+      return ResponseEntity.ok(Map.of(
+          "message", "Usuario registrado. Revisa tu correo para verificar tu cuenta.",
+          "email", user.email));
+    }
+    // Fallback for academic/demo environments without SMTP configured
+    return ResponseEntity.ok(Map.of(
+        "message", "Usuario registrado (modo desarrollo: email no configurado). Verifica tu cuenta con el token.",
+        "email", user.email,
+        "token", user.verificationToken));
   }
 
   @Operation(summary = "Refrescar token", description = "Extiende la validez del JWT actual")
@@ -90,22 +104,36 @@ public class AuthController {
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no encontrado"));
     String token = jwtTokenProvider.generateToken(user);
     return new LoginResponse(token, user.email, user.fullName,
-        List.of("ROLE_" + user.role.name()), expirationMs / 1000);
+        List.of("ROLE_" + user.role.name()), expirationMs / 1000, user.verified);
   }
 
-  @Operation(summary = "Verificar email", description = "Marca el email como verificado usando un token JWT")
+  @Operation(summary = "Verificar email (GET)", description = "Marca el email como verificado usando un token desde un enlace")
+  @GetMapping("/verify-email")
+  public Map<String, String> verifyEmailGet(@RequestParam("token") String token) {
+    service.verifyEmailWithToken(token);
+    return Map.of("message", "Email verificado correctamente");
+  }
+
+  @Operation(summary = "Verificar email (POST)", description = "Marca el email como verificado usando un token JWT o secure token")
   @PostMapping("/verify")
-  public Map<String, String> verifyEmail(@RequestBody Map<String, String> body) {
+  public Map<String, String> verifyEmailPost(@RequestBody Map<String, String> body) {
     String token = body.get("token");
     if (token == null || token.isBlank()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token requerido");
     }
-    if (!jwtTokenProvider.validateToken(token)) {
-      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token invalido o expirado");
+    // Try secure token first
+    try {
+      service.verifyEmailWithToken(token);
+      return Map.of("message", "Email verificado correctamente");
+    } catch (ResponseStatusException ex) {
+      // Fallback to JWT token for backwards compatibility
+      if (!jwtTokenProvider.validateToken(token)) {
+        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token invalido o expirado");
+      }
+      String email = jwtTokenProvider.getEmailFromToken(token);
+      service.verifyEmail(email);
+      return Map.of("message", "Email verificado correctamente");
     }
-    String email = jwtTokenProvider.getEmailFromToken(token);
-    service.verifyEmail(email);
-    return Map.of("message", "Email verificado correctamente");
   }
 
   @Operation(summary = "Reenviar verificacion", description = "Genera un nuevo token de verificacion y lo envia por email")
@@ -113,17 +141,12 @@ public class AuthController {
   @PreAuthorize("isAuthenticated()")
   public Map<String, String> resendVerification(Authentication authentication) {
     String email = authentication.getName();
-    AppUser user = service.findByEmail(email)
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
-    String verifyToken = jwtTokenProvider.generateToken(user);
+    AppUser user = service.regenerateVerificationToken(email);
     if (emailEnabled) {
-      emailService.send(email, "Verificacion de cuenta GreenHouse",
-          "Hola " + user.fullName + ",\n\nTu token de verificacion es: " + verifyToken
-              + "\n\nExpira en 24 horas.");
+      emailService.sendVerificationEmail(user.email, user.fullName, user.verificationToken);
       return Map.of("message", "Correo de verificacion enviado");
     }
-    // Fallback for academic/demo environments without SMTP configured
-    return Map.of("message", "Token de verificacion generado (modo desarrollo: email no configurado)", "token", verifyToken);
+    return Map.of("message", "Token de verificacion regenerado (modo desarrollo)", "token", user.verificationToken);
   }
 
   @Operation(summary = "Solicitar recuperacion de contrasena", description = "Genera un token de recuperacion y lo envia por email")
@@ -133,19 +156,17 @@ public class AuthController {
     if (email == null || email.isBlank()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email requerido");
     }
-    AppUser user = service.findByEmail(email).orElse(null);
+    AppUser user = service.createPasswordResetToken(email);
     if (user == null) {
+      // Do not reveal whether email exists
       return Map.of("message", "Si el correo existe, se ha enviado un enlace de recuperacion");
     }
-    String resetToken = jwtTokenProvider.generateToken(user);
     if (emailEnabled) {
-      emailService.send(email, "Recuperacion de contrasena GreenHouse",
-          "Hola " + user.fullName + ",\n\nTu token de recuperacion es: " + resetToken
-              + "\n\nExpira en 24 horas.");
-      return Map.of("message", "Correo de recuperacion enviado");
+      emailService.sendPasswordResetEmail(user.email, user.fullName, user.resetToken);
+      return Map.of("message", "Si el correo existe, se ha enviado un enlace de recuperacion");
     }
-    // Fallback for academic/demo environments without SMTP configured
-    return Map.of("message", "Token de recuperacion generado (modo desarrollo: email no configurado)", "token", resetToken);
+    // Fallback for academic/demo environments
+    return Map.of("message", "Token de recuperacion generado (modo desarrollo: email no configurado)", "token", user.resetToken);
   }
 
   @Operation(summary = "Restablecer contrasena", description = "Usa el token de recuperacion para cambiar la contrasena")
@@ -153,14 +174,13 @@ public class AuthController {
   public Map<String, String> resetPassword(@RequestBody Map<String, String> body) {
     String token = body.get("token");
     String newPassword = body.get("password");
-    if (token == null || newPassword == null) {
+    if (token == null || newPassword == null || newPassword.isBlank()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token y password requeridos");
     }
-    if (!jwtTokenProvider.validateToken(token)) {
-      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token invalido o expirado");
+    if (newPassword.length() < 4) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La contrasena debe tener al menos 4 caracteres");
     }
-    String email = jwtTokenProvider.getEmailFromToken(token);
-    service.resetPassword(email, newPassword);
+    service.resetPasswordWithToken(token, newPassword);
     return Map.of("message", "Contrasena restablecida correctamente");
   }
 
