@@ -68,8 +68,8 @@ class GreenhouseControllerTest {
   }
 
   @Test
-  void unauthenticatedRequestRedirectsToOAuth() throws Exception {
+  void unauthenticatedRequestReturnsForbidden() throws Exception {
     mvc.perform(get("/api/greenhouses"))
-        .andExpect(status().is3xxRedirection());
+        .andExpect(status().isForbidden());
   }
 }

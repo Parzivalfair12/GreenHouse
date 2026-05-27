@@ -16,6 +16,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - greenhouse-net
 
   backend:
     build: ./backend
@@ -25,24 +27,53 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      SPRING_PROFILES_ACTIVE: dev
       DB_URL: jdbc:postgresql://postgres:5432/greenhouse
       DB_USERNAME: greenhouse_user
       DB_PASSWORD: ${DB_PASSWORD:-greenhouse_pass}
-      JWT_SECRET: ${JWT_SECRET:-mi_clave_secreta_para_desarrollo_12345678901234567890}
+      JWT_SECRET: ${JWT_SECRET:-}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      OAUTH2_ENABLED: ${OAUTH2_ENABLED:-false}
+      IA_URL: ${IA_URL:-http://greenhouse-ia:5000}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin_dev_change_me}
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
     ports:
       - "8080:8080"
+    networks:
+      - greenhouse-net
+
+  ia:
+    build: ./ia
+    container_name: greenhouse-ia
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: greenhouse
+      DB_USER: greenhouse_user
+      DB_PASS: ${DB_PASSWORD:-greenhouse_pass}
+    ports:
+      - "5000:5000"
+    networks:
+      - greenhouse-net
 
   frontend:
     build: ./frontend
     container_name: greenhouse-frontend
     restart: unless-stopped
-    depends_on:
-      - backend
     ports:
       - "5173:80"
+    networks:
+      - greenhouse-net
 
 volumes:
   greenhouse_postgres_data:
+
+networks:
+  greenhouse-net:
+    driver: bridge

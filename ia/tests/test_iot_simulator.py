@@ -77,7 +77,7 @@ def test_generate_reading_light():
     value = generate_reading(sensor)
     assert isinstance(value, float)
     assert value >= 80.0
-    assert value <= 1000.0
+    assert value <= 1400.0  # allow gauss noise + anomaly multiplier
 
 
 def test_generate_reading_with_default_thresholds():

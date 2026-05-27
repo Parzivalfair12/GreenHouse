@@ -54,7 +54,11 @@ import {
   getStoredSession,
 } from './api.js';
 import { AlertsSection } from './components/AlertsSection.jsx';
+import { ArchitectureSection } from './components/ArchitectureSection.jsx';
+import { CrudSection } from './components/CrudSection.jsx';
 import { DashboardSection } from './components/DashboardSection.jsx';
+import { DataDictionarySection } from './components/DataDictionarySection.jsx';
+import { DataSection } from './components/DataSection.jsx';
 import { IaSection } from './components/IaSection.jsx';
 import { LogsSection } from './components/LogsSection.jsx';
 import { TaigaSection } from './components/TaigaSection.jsx';
@@ -163,12 +167,12 @@ export function App() {
   }, [session]);
 
   useEffect(() => {
-    if (!session) return;
+    if (!session || apiError) return;
     const interval = setInterval(() => {
       refresh();
     }, 5000);
     return () => clearInterval(interval);
-  }, [session]);
+  }, [session, apiError]);
 
   useEffect(() => {
     setOnUnauthorized(() => {
@@ -203,8 +207,8 @@ export function App() {
   const selected = greenhouses.find((greenhouse) => greenhouse.id === selectedId) ?? greenhouses[0];
   const totals = useMemo(() => ({
     greenhouses: greenhouses.length,
-    crops: greenhouses.reduce((sum, greenhouse) => sum + greenhouse.cropCount, 0),
-    sensors: greenhouses.reduce((sum, greenhouse) => sum + greenhouse.sensorCount, 0),
+    crops: greenhouses.reduce((sum, greenhouse) => sum + (greenhouse.cropCount ?? 0), 0),
+    sensors: greenhouses.reduce((sum, greenhouse) => sum + (greenhouse.sensorCount ?? 0), 0),
     alerts: alerts.length,
     irrigation: greenhouses.reduce((sum, greenhouse) => sum + (greenhouse.irrigationEvents?.length ?? 0), 0)
   }), [greenhouses, alerts]);

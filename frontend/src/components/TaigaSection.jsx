@@ -77,11 +77,11 @@ export function TaigaSection({ t }) {
                   </span>
                 </div>
                 <p className="storyDesc">{story.description}</p>
-                {expandedId === story.id && story.criteria && (
+                {expandedId === story.id && Array.isArray(story.criteria) && story.criteria.length > 0 && (
                   <div className="storyCriteria">
                     <strong>{t.acceptanceCriteria ?? 'Criterios de aceptacion'}:</strong>
                     {story.criteria.map((c) => (
-                      <span key={c.id} className={`criterion ${c.status === 'PASSED' ? 'passed' : ''}`}>
+                      <span key={c.id ?? c.description} className={`criterion ${c.status === 'PASSED' ? 'passed' : ''}`}>
                         {c.status === 'PASSED' ? <CheckCircle size={14} /> : <Circle size={14} />}
                         {c.description}
                       </span>

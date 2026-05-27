@@ -1,0 +1,12 @@
+# Root .dockerignore — applied when using docker compose with root build context
+.git
+.gitignore
+*.md
+*.log
+.env
+.env.*
+.idea/
+.vscode/
+*.iml
+node_modules/
+dist/

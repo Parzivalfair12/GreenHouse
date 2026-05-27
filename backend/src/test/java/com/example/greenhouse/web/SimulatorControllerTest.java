@@ -95,6 +95,6 @@ class SimulatorControllerTest {
   @Test
   void unauthenticatedCannotAccessSimulator() throws Exception {
     mvc.perform(get("/api/simulator/status"))
-        .andExpect(status().is3xxRedirection());
+        .andExpect(status().isForbidden());
   }
 }

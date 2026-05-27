@@ -2,9 +2,9 @@ spring:
   application:
     name: greenhouse-api
   datasource:
-    url: jdbc:postgresql://localhost:5432/greenhouse
-    username: postgres
-    password: daniel20
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/greenhouse}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -13,15 +13,6 @@ spring:
     enabled: true
     baseline-on-migrate: true
     baseline-version: 0
-  security:
-    oauth2:
-      client:
-        registration:
-          google:
-            client-id: ${GOOGLE_CLIENT_ID}
-            client-secret: ${GOOGLE_CLIENT_SECRET}
-            scope: openid,email,profile
-
   mail:
     host: ${SMTP_HOST:localhost}
     port: ${SMTP_PORT:1025}
@@ -36,14 +27,26 @@ spring:
 
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
-  jwt-secret: ${JWT_SECRET:mi_clave_secreta_para_desarrollo_12345678901234567890}
+  ia-url: ${IA_URL:http://localhost:5000}
+  jwt-secret: ${JWT_SECRET:dev-only-change-me-in-production-0123456789abcdef0123456789abcdef}
   jwt-expiration-ms: 86400000
+  oauth2:
+    enabled: ${OAUTH2_ENABLED:false}
 
 greenhouse:
   seeder:
-    admin-password: ${ADMIN_PASSWORD:admin1234}
+    admin-password: ${ADMIN_PASSWORD:admin_dev_change_me}
   email:
     enabled: ${EMAIL_ENABLED:false}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when_authorized
 
 springdoc:
   swagger-ui:

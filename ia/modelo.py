@@ -4,6 +4,7 @@ Fetches real historical readings from PostgreSQL,
 trains models on actual data, and returns predictions.
 """
 
+import logging
 import os
 import numpy as np
 import pandas as pd
@@ -13,6 +14,12 @@ import joblib
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "data", "model.pkl")
 
 DB_CONFIG = {
@@ -20,7 +27,7 @@ DB_CONFIG = {
     "port": os.getenv("DB_PORT", "5432"),
     "database": os.getenv("DB_NAME", "greenhouse"),
     "user": os.getenv("DB_USER", "postgres"),
-    "password": os.getenv("DB_PASS", "daniel20")
+    "password": os.getenv("DB_PASS", "postgres")
 }
 
 
@@ -56,7 +63,7 @@ def fetch_recent_readings(sensor_type=None, limit=50):
         conn.close()
         return rows
     except Exception as e:
-        print(f"[IA] DB fetch error: {e}")
+        logger.error("DB fetch error: %s", e)
         return []
 
 

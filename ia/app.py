@@ -1,9 +1,16 @@
+import logging
 from flask import Flask, request, jsonify
 from modelo import (
     predict_next, detect_anomaly, get_risk_level,
     predict_from_db, get_recommendation, fetch_recent_readings
 )
 import numpy as np
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 

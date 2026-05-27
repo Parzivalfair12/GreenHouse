@@ -104,11 +104,14 @@ function MermaidDiagram({ definition, id }) {
   useEffect(() => {
     async function renderMermaid() {
       try {
-        const resp = await fetch(`https://mermaid.ink/img/${btoa(definition)}?theme=dark&scale=2`);
+        const encoded = btoa(unescape(encodeURIComponent(definition)));
+        const resp = await fetch(`https://mermaid.ink/img/${encoded}?theme=dark&scale=2`);
         if (resp.ok) {
           setSvg(resp.url);
         }
-      } catch {}
+      } catch {
+        setSvg('');
+      }
     }
     renderMermaid();
   }, [definition]);

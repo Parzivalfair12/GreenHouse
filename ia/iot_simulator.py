@@ -9,10 +9,17 @@ Usage:
 """
 
 import argparse
+import logging
 import random
 import time
 import requests
 from datetime import datetime
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 API_BASE = "http://localhost:8080"
 AUTH_TOKEN = None
@@ -70,28 +77,29 @@ def post_reading(sensor, value):
 
 def run_simulation(interval_seconds, max_iterations=None):
     """Run the simulation loop."""
-    print(f"[IoT Simulator] Starting with interval={interval_seconds}s")
+    logger.info("Starting with interval=%ss", interval_seconds)
     iteration = 0
     while max_iterations is None or iteration < max_iterations:
         iteration += 1
         try:
             sensors = get_sensors()
             if not sensors:
-                print("[IoT Simulator] No sensors found. Waiting...")
+                logger.info("No sensors found. Waiting...")
                 time.sleep(interval_seconds)
                 continue
             for sensor in sensors:
                 value = generate_reading(sensor)
                 result = post_reading(sensor, value)
-                print(f"[IoT Simulator] {sensor['code']} ({sensor['type']}): {value} {sensor.get('unit','')} -> reading #{result.get('id')}")
+                logger.info("%s (%s): %s %s -> reading #%s",
+                    sensor['code'], sensor['type'], value, sensor.get('unit',''), result.get('id'))
             time.sleep(interval_seconds)
         except requests.exceptions.ConnectionError:
-            print(f"[IoT Simulator] Backend unavailable. Retrying in {interval_seconds}s...")
+            logger.warning("Backend unavailable. Retrying in %ss...", interval_seconds)
             time.sleep(interval_seconds)
         except Exception as e:
-            print(f"[IoT Simulator] Error: {e}")
+            logger.error("Error: %s", e)
             time.sleep(interval_seconds)
-    print("[IoT Simulator] Finished.")
+    logger.info("Finished.")
 
 
 if __name__ == "__main__":

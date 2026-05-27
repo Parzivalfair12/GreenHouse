@@ -5,3 +5,9 @@ target/
 .gitignore
 README.md
 node_modules/
+.env
+.env.*
+.idea/
+.vscode/
+*.iml
+.m2/

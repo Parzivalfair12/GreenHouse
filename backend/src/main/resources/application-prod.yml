@@ -1,3 +1,4 @@
+# Production profile — all secrets MUST come from environment variables (no defaults)
 spring:
   datasource:
     url: ${DB_URL}
@@ -11,24 +12,44 @@ spring:
     enabled: true
     baseline-on-migrate: true
     baseline-version: 0
-  security:
-    oauth2:
-      client:
-        registration:
-          google:
-            client-id: ${GOOGLE_CLIENT_ID}
-            client-secret: ${GOOGLE_CLIENT_SECRET}
-            scope: openid,email,profile
-            redirect-uri: ${BASE_URL:http://localhost:8080}/login/oauth2/code/google
+  mail:
+    host: ${SMTP_HOST}
+    port: ${SMTP_PORT}
+    username: ${SMTP_USER}
+    password: ${SMTP_PASS}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 app:
   frontend-url: ${FRONTEND_URL}
+  ia-url: ${IA_URL}
   jwt-secret: ${JWT_SECRET}
   jwt-expiration-ms: 86400000
+  oauth2:
+    enabled: ${OAUTH2_ENABLED:false}
 
-server:
-  port: ${PORT:8080}
+greenhouse:
+  seeder:
+    admin-password: ${ADMIN_PASSWORD}
+  email:
+    enabled: ${EMAIL_ENABLED}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when_authorized
 
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+
+server:
+  port: ${PORT:8080}

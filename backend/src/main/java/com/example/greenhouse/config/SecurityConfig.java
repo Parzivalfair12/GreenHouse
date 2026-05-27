@@ -1,6 +1,7 @@
 package com.example.greenhouse.config;
 
 import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,6 +11,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -27,8 +29,14 @@ public class SecurityConfig {
   }
 
   @Bean
-  SecurityFilterChain securityFilterChain(HttpSecurity http, OAuth2LoginSuccessHandler successHandler) throws Exception {
-    return http
+  SecurityFilterChain securityFilterChain(HttpSecurity http,
+      OAuth2LoginSuccessHandler successHandler,
+      @Autowired(required = false) ClientRegistrationRepository clientRegistrationRepository) throws Exception {
+    http
+        // CSRF disabled for /api/** because this is a stateless REST API using JWT Bearer tokens.
+        // The JWT is sent in Authorization header for programmatic access (login, register, CRUD).
+        // CSRF remains active for non-API endpoints (e.g., OAuth2 callback paths).
+        // H2 console is excluded only for local development convenience.
         .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**", "/h2-console/**"))
         .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
         .cors(Customizer.withDefaults())
@@ -57,12 +65,18 @@ public class SecurityConfig {
 
             // All other API requires authentication
             .requestMatchers("/api/**").authenticated()
-            .anyRequest().authenticated())
-        .oauth2Login(oauth -> oauth
-            .successHandler(successHandler)
-            .failureUrl(successHandler.failureUrl()))
-        .logout(logout -> logout.logoutSuccessUrl("/"))
-        .build();
+            .anyRequest().authenticated());
+
+    // OAuth2 login is only enabled when ClientRegistrationRepository exists
+    // (created by OAuth2ClientConfig when app.oauth2.enabled=true)
+    if (clientRegistrationRepository != null) {
+      http.oauth2Login(oauth -> oauth
+          .successHandler(successHandler)
+          .failureUrl(successHandler.failureUrl()));
+    }
+
+    http.logout(logout -> logout.logoutSuccessUrl("/"));
+    return http.build();
   }
 
   @Bean

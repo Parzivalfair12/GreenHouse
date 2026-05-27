@@ -2,13 +2,14 @@ package com.example.greenhouse.config;
 
 import com.example.greenhouse.domain.AppUser;
 import com.example.greenhouse.service.AuthService;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -41,12 +42,15 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
     }
     if (user != null) {
       String token = jwtTokenProvider.generateToken(user);
-      Cookie cookie = new Cookie("jwt", token);
-      cookie.setHttpOnly(true);
-      cookie.setSecure(false); // Set to true in production with HTTPS
-      cookie.setPath("/");
-      cookie.setMaxAge(86400); // 24 hours
-      response.addCookie(cookie);
+      boolean isSecure = frontendUrl.startsWith("https");
+      ResponseCookie cookie = ResponseCookie.from("jwt", token)
+          .httpOnly(true)
+          .secure(isSecure)
+          .sameSite("Lax")
+          .path("/")
+          .maxAge(Duration.ofDays(1))
+          .build();
+      response.addHeader("Set-Cookie", cookie.toString());
       response.sendRedirect(frontendUrl + "?oauth=google&status=success");
     } else {
       response.sendRedirect(frontendUrl + "?oauth=google&status=error&message=No+se+pudo+autenticar");

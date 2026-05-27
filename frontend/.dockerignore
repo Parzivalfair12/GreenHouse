@@ -4,3 +4,8 @@ dist/
 .gitignore
 *.log
 README.md
+.env
+.env.*
+.idea/
+.vscode/
+*.iml
