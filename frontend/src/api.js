@@ -1,30 +1,5 @@
 const STORAGE_KEY = 'greenhouse-session';
 
-const fallbackGreenhouses = [
-  {
-    id: 1,
-    name: 'Invernadero Norte',
-    location: 'Campus principal',
-    areaSquareMeters: 120.5,
-    active: true,
-    cropCount: 1,
-    sensorCount: 1,
-    crops: [{ id: 1, name: 'Tomate chonto', variety: 'Santa Clara', status: 'GERMINATING' }],
-    sensors: [{ id: 1, code: 'TEMP-001', type: 'TEMPERATURE', unit: 'C' }],
-    irrigationEvents: [{ id: 1, durationMinutes: 18, waterLiters: 32.4, mode: 'AUTOMATIC' }]
-  }
-];
-
-const fallbackAlerts = [
-  {
-    id: 1,
-    severity: 'WARNING',
-    message: 'Temperatura por encima del umbral',
-    resolved: false,
-    sensorCode: 'TEMP-001'
-  }
-];
-
 // --- Session management (centralizado) ---
 
 export function getStoredSession() {
@@ -65,7 +40,8 @@ async function tryRefreshToken() {
       headers: {
         'Authorization': `Bearer ${session.token}`,
         'Content-Type': 'application/json'
-      }
+      },
+      credentials: 'include'
     });
     if (!response.ok) return false;
     const data = await response.json();
@@ -112,6 +88,7 @@ async function sendJson(path, method, body) {
       'Content-Type': 'application/json',
       ...authHeaders()
     },
+    credentials: 'include',
     body: JSON.stringify(body)
   });
   if (response.status === 401) {
@@ -123,6 +100,7 @@ async function sendJson(path, method, body) {
           'Content-Type': 'application/json',
           ...authHeaders()
         },
+        credentials: 'include',
         body: JSON.stringify(body)
       });
     }
@@ -132,46 +110,49 @@ async function sendJson(path, method, body) {
     throw new Error(`Request failed: ${response.status}`);
   }
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
+    const errText = await response.text().catch(() => `HTTP ${response.status}`);
+    throw new Error(errText || `Request failed: ${response.status}`);
   }
   return response.json();
 }
 
-async function fetchJson(path, fallback) {
+async function fetchJson(path) {
   const url = getApiUrl(path);
-  try {
-    let response = await fetch(url, { headers: authHeaders() });
-    if (response.status === 401) {
-      const refreshed = await tryRefreshToken();
-      if (refreshed) {
-        response = await fetch(url, { headers: authHeaders() });
-      }
-    }
-    if (response.status === 401 || response.status === 403) {
-      triggerUnauthorized();
-      throw new Error(`Session expired: ${response.status}`);
-    }
-    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-    return response.json();
-  } catch {
-    return fallback;
-  }
-}
-
-async function deleteJson(path) {
-  const url = getApiUrl(path);
-  let response = await fetch(url, { method: 'DELETE', headers: authHeaders() });
+  let response = await fetch(url, { headers: authHeaders(), credentials: 'include' });
   if (response.status === 401) {
     const refreshed = await tryRefreshToken();
     if (refreshed) {
-      response = await fetch(url, { method: 'DELETE', headers: authHeaders() });
+      response = await fetch(url, { headers: authHeaders(), credentials: 'include' });
     }
   }
   if (response.status === 401 || response.status === 403) {
     triggerUnauthorized();
     throw new Error(`Session expired: ${response.status}`);
   }
-  if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+  if (!response.ok) {
+    const errText = await response.text().catch(() => `HTTP ${response.status}`);
+    throw new Error(errText || `Request failed: ${response.status}`);
+  }
+  return response.json();
+}
+
+async function deleteJson(path) {
+  const url = getApiUrl(path);
+  let response = await fetch(url, { method: 'DELETE', headers: authHeaders(), credentials: 'include' });
+  if (response.status === 401) {
+    const refreshed = await tryRefreshToken();
+    if (refreshed) {
+      response = await fetch(url, { method: 'DELETE', headers: authHeaders(), credentials: 'include' });
+    }
+  }
+  if (response.status === 401 || response.status === 403) {
+    triggerUnauthorized();
+    throw new Error(`Session expired: ${response.status}`);
+  }
+  if (!response.ok) {
+    const errText = await response.text().catch(() => `HTTP ${response.status}`);
+    throw new Error(errText || `Request failed: ${response.status}`);
+  }
 }
 
 // --- Public API ---
@@ -223,45 +204,43 @@ export async function fetchCurrentOAuthUser() {
 }
 
 export function fetchGreenhouses() {
-  return fetchJson('/api/greenhouses', fallbackGreenhouses);
+  return fetchJson('/api/greenhouses');
 }
 
 export function fetchDashboard() {
-  return fetchJson('/api/dashboard', null);
+  return fetchJson('/api/dashboard');
 }
 
 export function fetchAlerts() {
-  return fetchJson('/api/alerts/open', fallbackAlerts);
+  return fetchJson('/api/alerts/open');
 }
 
 export function fetchUsers() {
-  return fetchJson('/api/users', [
-    { id: 1, email: 'admin@greenhouse.local', fullName: 'Administrador', role: 'ADMIN', provider: 'email' }
-  ]);
+  return fetchJson('/api/users');
 }
 
 export function fetchZones() {
-  return fetchJson('/api/zones', []);
+  return fetchJson('/api/zones');
 }
 
 export function fetchSensors() {
-  return fetchJson('/api/sensors', []);
+  return fetchJson('/api/sensors');
 }
 
 export function fetchReadings() {
-  return fetchJson('/api/readings', []);
+  return fetchJson('/api/readings');
 }
 
 export function fetchActuators() {
-  return fetchJson('/api/actuators', []);
+  return fetchJson('/api/actuators');
 }
 
 export function fetchRules() {
-  return fetchJson('/api/rules', []);
+  return fetchJson('/api/rules');
 }
 
 export function fetchAuditLogs() {
-  return fetchJson('/api/audit-logs', []);
+  return fetchJson('/api/audit-logs');
 }
 
 export function createGreenhouse(payload) {
@@ -273,7 +252,7 @@ export function updateGreenhouse(greenhouseId, payload) {
 }
 
 export function deleteGreenhouse(greenhouseId) {
-  return updateGreenhouse(greenhouseId, { active: false, name: 'Invernadero desactivado', location: 'Sin uso', areaSquareMeters: 1 });
+  return deleteJson(`/api/greenhouses/${greenhouseId}`);
 }
 
 export function addCrop(greenhouseId, payload) {
@@ -368,14 +347,16 @@ export async function resolveAlert(alertId) {
   const url = getApiUrl(`/api/alerts/${alertId}/resolve`);
   let response = await fetch(url, {
     method: 'PATCH',
-    headers: authHeaders()
+    headers: authHeaders(),
+    credentials: 'include'
   });
   if (response.status === 401) {
     const refreshed = await tryRefreshToken();
     if (refreshed) {
       response = await fetch(url, {
         method: 'PATCH',
-        headers: authHeaders()
+        headers: authHeaders(),
+        credentials: 'include'
       });
     }
   }
@@ -384,7 +365,83 @@ export async function resolveAlert(alertId) {
     throw new Error(`Session expired: ${response.status}`);
   }
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
+    const errText = await response.text().catch(() => `HTTP ${response.status}`);
+    throw new Error(errText || `Request failed: ${response.status}`);
   }
   return response.json();
+}
+
+// --- IA endpoints ---
+
+export async function fetchAiPrediction() {
+  return fetchJson('/api/ai/prediction');
+}
+
+export async function fetchLogs() {
+  return fetchJson('/api/audit-logs');
+}
+
+export async function fetchIaHealth() {
+  const response = await fetch(getApiUrl('/api/ia/health'), {
+    headers: authHeaders(),
+    credentials: 'include'
+  });
+  if (!response.ok) throw new Error(`IA health failed: ${response.status}`);
+  return response.json();
+}
+
+export async function fetchIaPrediction(temperatures, humidities) {
+  const response = await fetch(getApiUrl('/api/ia/predict'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    credentials: 'include',
+    body: JSON.stringify({ temperature: temperatures, humidity: humidities })
+  });
+  if (!response.ok) throw new Error(`IA predict failed: ${response.status}`);
+  return response.json();
+}
+
+export async function fetchIaRecommendation(tempPred, humPred, riskLevel) {
+  const response = await fetch(getApiUrl('/api/ia/recommend'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    credentials: 'include',
+    body: JSON.stringify({ predictedTemperature: tempPred, predictedHumidity: humPred, riskLevel })
+  });
+  if (!response.ok) throw new Error(`IA recommend failed: ${response.status}`);
+  return response.json();
+}
+
+// --- Taiga endpoints ---
+
+export async function fetchTaigaStories() {
+  const response = await fetch(getApiUrl('/api/taiga/stories'), {
+    headers: authHeaders(),
+    credentials: 'include'
+  });
+  if (!response.ok) throw new Error(`Taiga stories failed: ${response.status}`);
+  return response.json();
+}
+
+export async function fetchTaigaSummary() {
+  const response = await fetch(getApiUrl('/api/taiga/summary'), {
+    headers: authHeaders(),
+    credentials: 'include'
+  });
+  if (!response.ok) throw new Error(`Taiga summary failed: ${response.status}`);
+  return response.json();
+}
+
+// --- Simulator control ---
+
+export async function startSimulator() {
+  return sendJson('/api/simulator/start', 'POST', {});
+}
+
+export async function stopSimulator() {
+  return sendJson('/api/simulator/stop', 'POST', {});
+}
+
+export async function fetchSimulatorStatus() {
+  return fetchJson('/api/simulator/status');
 }

@@ -1892,3 +1892,244 @@ select:focus {
 }
 
 .dicRelTag { color: var(--accent); font-weight: 500; }
+
+/* Loading and Error Overlays */
+.loadingOverlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  gap: 16px;
+  color: var(--muted);
+}
+
+.loadingOverlay.minimal {
+  padding: 24px;
+  flex-direction: row;
+  gap: 12px;
+}
+
+.errorOverlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  gap: 16px;
+  text-align: center;
+}
+
+.errorText {
+  color: var(--danger);
+  font-weight: 500;
+}
+
+.loadingSpinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loadingSpinner.large {
+  width: 48px;
+  height: 48px;
+  border-width: 4px;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.btnPrimary {
+  background: var(--accent);
+  color: #000;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btnPrimary:hover {
+  opacity: 0.9;
+}
+
+.btnSecondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.btnSecondary:hover {
+  background: var(--surface-2);
+}
+
+.actionBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Simulator Panel */
+.simulatorPanel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+.simulatorStatus {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.pulseDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--muted);
+  display: inline-block;
+}
+
+.pulseDot.active {
+  background: var(--accent);
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(0, 204, 122, 0.4); }
+  70% { box-shadow: 0 0 0 8px rgba(0, 204, 122, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 204, 122, 0); }
+}
+
+.simulatorBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.simulatorBtn.start {
+  background: var(--accent);
+  color: #000;
+}
+
+.simulatorBtn.stop {
+  background: var(--danger);
+  color: #fff;
+}
+
+/* Latest Readings */
+.latestReadingsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.readingCard {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.readingCard strong {
+  font-size: 0.8rem;
+  color: var(--text);
+}
+
+.readingValue {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.readingTime {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+/* Risk Badges */
+.riskBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.riskBadge-low {
+  background: rgba(0, 204, 122, 0.15);
+  color: var(--accent);
+}
+
+.riskBadge-medium {
+  background: rgba(217, 164, 0, 0.15);
+  color: var(--warning);
+}
+
+.riskBadge-high {
+  background: rgba(255, 91, 91, 0.15);
+  color: var(--danger);
+}
+
+/* Log origin badges */
+.logOrigin {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.logOrigin-manual {
+  background: rgba(14, 165, 233, 0.15);
+  color: var(--cyan);
+}
+
+.logOrigin-automatic {
+  background: rgba(139, 92, 246, 0.15);
+  color: #a78bfa;
+}

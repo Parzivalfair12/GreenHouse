@@ -1,15 +1,30 @@
-import { AlertTriangle, Bell, FlaskConical, Leaf, Plus, Power, Radio, Sprout } from 'lucide-react';
+import { AlertTriangle, Bell, FlaskConical, Leaf, Pause, Play, Plus, Power, Radio, Sprout } from 'lucide-react';
 import { Metric, Panel, Section } from './shared.jsx';
 import { IaPreview } from './IaSection.jsx';
 
-export function DashboardSection({ totals, selected, alerts, dashboard, readings, sensors, t, openAlerts }) {
+export function DashboardSection({ totals, selected, alerts, dashboard, readings, sensors, actuators, t, openAlerts, simulatorRunning, onStartSimulator, onStopSimulator }) {
+  const activeActuators = actuators?.filter((a) => a.enabled).length ?? 0;
+
   return (
     <Section title={t.overview} subtitle={t.dashboardSubtitle}>
+      <div className="simulatorPanel">
+        <div className="simulatorStatus">
+          <span className={`pulseDot ${simulatorRunning ? 'active' : ''}`} />
+          <span>Simulador IoT {simulatorRunning ? 'activo' : 'inactivo'}</span>
+        </div>
+        <button
+          type="button"
+          className={`simulatorBtn ${simulatorRunning ? 'stop' : 'start'}`}
+          onClick={simulatorRunning ? onStopSimulator : onStartSimulator}
+        >
+          {simulatorRunning ? <><Pause size={16} /> Detener</> : <><Play size={16} /> Iniciar simulacion</>}
+        </button>
+      </div>
       <section className="metrics" aria-label="Metricas">
         <Metric icon={<Leaf />} label={t.greenhouses} value={dashboard?.greenhouses ?? totals.greenhouses} />
         <Metric icon={<Sprout />} label={t.crops} value={totals.crops} />
         <Metric icon={<Radio />} label={t.sensors} value={dashboard?.sensors ?? totals.sensors} />
-        <Metric icon={<Power />} label={t.actuatorsOn} value={dashboard?.actuatorsEnabled ?? totals.irrigation} tone="power" />
+        <Metric icon={<Power />} label={t.actuatorsOn} value={activeActuators} tone={activeActuators > 0 ? 'power' : undefined} />
         <Metric icon={<AlertTriangle />} label={t.pending} value={dashboard?.openAlerts ?? totals.alerts} tone="warning" />
         <Metric icon={<FlaskConical />} label={'IA'} value={<IaPreview readings={readings} sensors={sensors} />} />
       </section>
@@ -17,8 +32,31 @@ export function DashboardSection({ totals, selected, alerts, dashboard, readings
         <SensorChart dashboard={dashboard} selected={selected} readings={readings} sensors={sensors} t={t} />
         <AlertPreview alerts={alerts} t={t} onOpen={openAlerts} />
       </div>
+      <LatestReadings readings={readings} sensors={sensors} t={t} />
       <OverviewPanel selected={selected} dashboard={dashboard} t={t} />
     </Section>
+  );
+}
+
+function LatestReadings({ readings, sensors, t }) {
+  if (!readings || readings.length === 0) return null;
+  const sensorMap = new Map(sensors.map((s) => [s.id, s]));
+  const latest = readings.slice().sort((a, b) => new Date(b.recordedAt) - new Date(a.recordedAt)).slice(0, 6);
+  return (
+    <Panel title="Ultimas lecturas">
+      <div className="latestReadingsGrid">
+        {latest.map((r) => {
+          const sensor = sensorMap.get(r.sensorId);
+          return (
+            <div key={r.id} className="readingCard">
+              <strong>{sensor?.code ?? r.sensorId}</strong>
+              <span className="readingValue">{Number(r.value).toFixed(1)} {sensor?.unit ?? ''}</span>
+              <span className="readingTime">{new Date(r.recordedAt).toLocaleTimeString()}</span>
+            </div>
+          );
+        })}
+      </div>
+    </Panel>
   );
 }
 

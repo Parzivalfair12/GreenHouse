@@ -45,18 +45,16 @@ import {
   updateRule,
   deleteRule,
   fetchAuditLogs,
+  fetchSimulatorStatus,
+  startSimulator,
+  stopSimulator,
   setOnUnauthorized,
   clearStoredSession,
-  getStoredSession
+  getStoredSession,
 } from './api.js';
 import { AlertsSection } from './components/AlertsSection.jsx';
-import { AppHeader, SidebarBrand } from './components/AppHeader.jsx';
-import { DashboardSection } from './components/DashboardSection.jsx';
-import { CrudSection } from './components/CrudSection.jsx';
-import { ArchitectureSection } from './components/ArchitectureSection.jsx';
-import { DataDictionarySection } from './components/DataDictionarySection.jsx';
-import { DataSection } from './components/DataSection.jsx';
 import { IaSection } from './components/IaSection.jsx';
+import { LogsSection } from './components/LogsSection.jsx';
 import { TaigaSection } from './components/TaigaSection.jsx';
 import { GreenhousesSection } from './components/GreenhousesSection.jsx';
 import { LoginScreen } from './components/LoginScreen.jsx';
@@ -110,6 +108,9 @@ export function App() {
   const [irrigationForm, setIrrigationForm] = useState(emptyIrrigation);
   const [userForm, setUserForm] = useState(emptyUser);
   const [loginError, setLoginError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState(null);
+  const [simulatorRunning, setSimulatorRunning] = useState(false);
   const t = dictionary[language];
 
   function toggleTheme() {
@@ -117,37 +118,55 @@ export function App() {
   }
 
   async function refresh() {
-    const [greenhouseData, alertData, userData, dashboardData, zoneData, sensorData, readingData, actuatorData, ruleData, logData] = await Promise.all([
-      fetchGreenhouses(),
-      fetchAlerts(),
-      fetchUsers(),
-      fetchDashboard(),
-      fetchZones(),
-      fetchSensors(),
-      fetchReadings(),
-      fetchActuators(),
-      fetchRules(),
-      fetchAuditLogs()
-    ]);
-    setGreenhouses(greenhouseData);
-    setAlerts(alertData);
-    setUsers(userData);
-    setDashboard(dashboardData);
-    setZones(zoneData);
-    setAllSensors(sensorData);
-    setReadings(readingData);
-    setActuators(actuatorData);
-    setRules(ruleData);
-    setLogs(logData);
-    setSelectedId((current) => {
-      if (greenhouseData.some((greenhouse) => greenhouse.id === current)) return current;
-      return pickDefaultGreenhouseId(greenhouseData, sensorData, readingData);
-    });
+    setApiError(null);
+    try {
+      const [greenhouseData, alertData, userData, dashboardData, zoneData, sensorData, readingData, actuatorData, ruleData, logData] = await Promise.all([
+        fetchGreenhouses(),
+        fetchAlerts(),
+        fetchUsers(),
+        fetchDashboard(),
+        fetchZones(),
+        fetchSensors(),
+        fetchReadings(),
+        fetchActuators(),
+        fetchRules(),
+        fetchAuditLogs()
+      ]);
+      setGreenhouses(greenhouseData);
+      setAlerts(alertData);
+      setUsers(userData);
+      setDashboard(dashboardData);
+      setZones(zoneData);
+      setAllSensors(sensorData);
+      setReadings(readingData);
+      setActuators(actuatorData);
+      setRules(ruleData);
+      setLogs(logData);
+      setSelectedId((current) => {
+        if (greenhouseData.some((greenhouse) => greenhouse.id === current)) return current;
+        return pickDefaultGreenhouseId(greenhouseData, sensorData, readingData);
+      });
+    } catch (err) {
+      setApiError(err.message || t.loadError);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
-    refresh();
-  }, []);
+    if (session) {
+      refresh();
+      fetchSimulatorStatus().then((s) => setSimulatorRunning(s.running)).catch(() => {});
+    }
+  }, [session]);
+
+  useEffect(() => {
+    if (!session) return;
+    const interval = setInterval(() => {
+      refresh();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [session]);
 
   useEffect(() => {
     setOnUnauthorized(() => {
@@ -161,16 +180,16 @@ export function App() {
     const params = new URLSearchParams(window.location.search);
     if (params.get('oauth') !== 'google') return;
 
-    if (params.get('status') === 'success' && params.get('token')) {
-      const session = {
-        token: params.get('token'),
-        email: params.get('email') ?? '',
-        fullName: params.get('email') ?? '',
-        roles: params.get('role') ? ['ROLE_' + params.get('role')] : [],
-        expiresIn: 86400
-      };
-      saveSession(session);
-      clearOAuthQuery();
+    if (params.get('status') === 'success') {
+      fetchCurrentOAuthUser()
+        .then((user) => {
+          saveSession(user);
+          clearOAuthQuery();
+        })
+        .catch(() => {
+          setLoginError(t.invalidLogin);
+          clearOAuthQuery();
+        });
     } else if (params.get('status') === 'error') {
       setLoginError(params.get('message') ?? t.invalidLogin);
       clearOAuthQuery();
@@ -431,6 +450,22 @@ export function App() {
         <AppHeader language={language} setLanguage={setLanguage} session={session} t={t} onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme} />
         <ToastContainer />
 
+      {loading && (
+        <div className="loadingOverlay">
+          <div className="loadingSpinner large" />
+          <p>{t.loading}</p>
+        </div>
+      )}
+
+      {!loading && apiError && (
+        <div className="errorOverlay">
+          <p className="errorText">{apiError}</p>
+          <button className="btnPrimary" onClick={refresh}>{t.retry}</button>
+        </div>
+      )}
+
+      {!loading && !apiError && (
+        <>
       {activeSection === 'dashboard' && (
         <DashboardSection
           totals={totals}
@@ -439,8 +474,12 @@ export function App() {
           dashboard={dashboard}
           readings={readings}
           sensors={allSensors}
+          actuators={actuators}
           t={t}
           openAlerts={() => setActiveSection('alerts')}
+          simulatorRunning={simulatorRunning}
+          onStartSimulator={async () => { await startSimulator(); setSimulatorRunning(true); showToast('Simulador IoT iniciado', 'success'); }}
+          onStopSimulator={async () => { await stopSimulator(); setSimulatorRunning(false); showToast('Simulador IoT detenido', 'info'); }}
         />
       )}
 
@@ -506,9 +545,7 @@ export function App() {
       {activeSection === 'alerts' && <AlertsSection alerts={alerts} onResolve={handleResolveAlert} t={t} />}
       {activeSection === 'ia' && <IaSection readings={readings} sensors={allSensors} t={t} />}
       {activeSection === 'taiga' && <TaigaSection t={t} />}
-      {activeSection === 'logs' && (
-        <CrudSection title={t.auditLog} formTitle={t.auditLog} items={logs} emptyItem={{}} fields={[]} columns={[{ key: 'action', label: t.action }, { key: 'origin', label: t.origin }, { key: 'detail', label: t.detail }, { key: 'createdAt', label: t.date }]} onCreate={async () => {}} onUpdate={async () => {}} onDelete={async () => {}} deleteLabel={t.noAction} t={t} />
-      )}
+      {activeSection === 'logs' && <LogsSection t={t} />}
       {activeSection === 'users' && (
         <UsersSection
           users={users}
@@ -521,6 +558,8 @@ export function App() {
       )}
       {activeSection === 'data' && <DataSection onExport={exportJson} t={t} />}
       {activeSection === 'manual' && <ManualSection t={t} />}
+        </>
+      )}
       </section>
     </main>
     </ErrorBoundary>

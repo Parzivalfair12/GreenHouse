@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { BookOpen, CheckCircle, Circle, ListChecks, Target } from 'lucide-react';
+import { BookOpen, CheckCircle, Circle, ListChecks, Target, Loader } from 'lucide-react';
 import { Metric, Panel, Section } from './shared.jsx';
+import { fetchTaigaStories, fetchTaigaSummary } from '../api.js';
 
 const STATUS_COLORS = {
   COMPLETED: { bg: 'rgba(0, 204, 122, 0.12)', text: '#00cc7a' },
@@ -12,24 +13,51 @@ export function TaigaSection({ t }) {
   const [stories, setStories] = useState([]);
   const [summary, setSummary] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    Promise.all([
-      fetch('/api/taiga/stories').then((r) => r.ok ? r.json() : []),
-      fetch('/api/taiga/summary').then((r) => r.ok ? r.json() : null)
-    ]).then(([storiesData, summaryData]) => {
-      setStories(storiesData);
-      setSummary(summaryData);
-    }).catch(() => {});
-  }, []);
+    setLoading(true);
+    setError(null);
+    Promise.all([fetchTaigaStories(), fetchTaigaSummary()])
+      .then(([storiesData, summaryData]) => {
+        setStories(storiesData);
+        setSummary(summaryData);
+      })
+      .catch((err) => {
+        setError(err.message || t.loadError);
+        setStories([]);
+        setSummary(null);
+      })
+      .finally(() => setLoading(false));
+  }, [t]);
+
+  if (loading) {
+    return (
+      <Section title={t.taigaTitle ?? 'Historias de Usuario'} subtitle={t.taigaSubtitle ?? 'Backlog del proyecto'}>
+        <div className="loadingOverlay minimal"><Loader className="spin" size={24} /><p>{t.loading}</p></div>
+      </Section>
+    );
+  }
+
+  if (error) {
+    return (
+      <Section title={t.taigaTitle ?? 'Historias de Usuario'} subtitle={t.taigaSubtitle ?? 'Backlog del proyecto'}>
+        <Panel title={t.error ?? 'Error'}>
+          <p className="errorText">{error}</p>
+          <p className="emptyState">{t.taigaUnavailable ?? 'Integracion con Taiga pendiente o servicio no disponible.'}</p>
+        </Panel>
+      </Section>
+    );
+  }
 
   return (
     <Section title={t.taigaTitle ?? 'Historias de Usuario'} subtitle={t.taigaSubtitle ?? 'Backlog del proyecto con criterios de aceptacion'}>
       {summary && (
         <div className="metrics">
-          <Metric icon={<ListChecks />} label={t.totalStories ?? 'Total historias'} value={summary.totalStories} />
-          <Metric icon={<CheckCircle />} label={t.completedStories ?? 'Completadas'} value={summary.completedStories} tone="power" />
-          <Metric icon={<Target />} label={t.completion ?? 'Completitud'} value={`${summary.completionPercent}%`} />
+          <Metric icon={<ListChecks />} label={t.totalStories ?? 'Total historias'} value={summary.totalStories ?? 0} />
+          <Metric icon={<CheckCircle />} label={t.completedStories ?? 'Completadas'} value={summary.completedStories ?? 0} tone="power" />
+          <Metric icon={<Target />} label={t.completion ?? 'Completitud'} value={`${summary.completionPercent ?? 0}%`} />
         </div>
       )}
 
@@ -49,10 +77,10 @@ export function TaigaSection({ t }) {
                   </span>
                 </div>
                 <p className="storyDesc">{story.description}</p>
-                {expandedId === story.id && (
+                {expandedId === story.id && story.criteria && (
                   <div className="storyCriteria">
                     <strong>{t.acceptanceCriteria ?? 'Criterios de aceptacion'}:</strong>
-                    {story.criteria?.map((c) => (
+                    {story.criteria.map((c) => (
                       <span key={c.id} className={`criterion ${c.status === 'PASSED' ? 'passed' : ''}`}>
                         {c.status === 'PASSED' ? <CheckCircle size={14} /> : <Circle size={14} />}
                         {c.description}

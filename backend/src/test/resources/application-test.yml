@@ -9,3 +9,6 @@ spring:
       ddl-auto: create-drop
   flyway:
     enabled: false
+
+app:
+  ia-url: http://localhost:59999

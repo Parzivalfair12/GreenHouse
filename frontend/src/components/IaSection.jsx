@@ -1,153 +1,107 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Cpu, FlaskConical, Thermometer, Droplets, Shield, TrendingUp } from 'lucide-react';
-import { Section, Panel, Metric } from './shared.jsx';
+import { Thermometer, Droplets, Shield, TrendingUp, Loader, AlertTriangle } from 'lucide-react';
+import { Section, Panel } from './shared.jsx';
+import { fetchAiPrediction } from '../api.js';
 
-const RISK_COLORS = {
-  LOW: { bg: 'rgba(0, 204, 122, 0.12)', text: '#00cc7a' },
-  MEDIUM: { bg: 'rgba(217, 164, 0, 0.12)', text: '#d9a400' },
-  HIGH: { bg: 'rgba(255, 91, 91, 0.12)', text: '#ff5b5b' },
-  UNAVAILABLE: { bg: 'rgba(156, 163, 175, 0.12)', text: '#9ca3af' }
+const RISK_CLASSES = {
+  LOW: 'risk-badge-low',
+  MEDIUM: 'risk-badge-medium',
+  HIGH: 'risk-badge-high'
 };
 
-export function IaPreview({ readings, sensors }) {
-  const [iaOnline, setIaOnline] = useState(null);
+export function IaPreview() {
+  const [risk, setRisk] = useState(null);
 
   useEffect(() => {
-    fetch('/api/ia/health')
-      .then((r) => setIaOnline(r.ok ? 'UP' : 'DOWN'))
-      .catch(() => setIaOnline('DOWN'));
+    fetchAiPrediction()
+      .then((data) => setRisk(data.riskLevel))
+      .catch(() => setRisk('Offline'));
   }, []);
 
-  if (iaOnline === null) return '...';
-  return iaOnline === 'UP' ? 'Online' : 'Offline';
+  const color = risk === 'HIGH' ? '#ff5b5b' : risk === 'MEDIUM' ? '#d9a400' : risk === 'LOW' ? '#00cc7a' : '#9ca3af';
+  return <span style={{ color, fontWeight: 700 }}>{risk ?? '...'}</span>;
 }
 
-export function IaSection({ readings, sensors, t }) {
+export function IaSection({ t }) {
   const [prediction, setPrediction] = useState(null);
-  const [recommendation, setRecommendation] = useState(null);
-  const [iaHealth, setIaHealth] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function loadPrediction() {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchAiPrediction();
+      setPrediction(data);
+    } catch (err) {
+      setError(err.message || t.loadError);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    fetchIaHealth();
-    if (readings.length >= 2) {
-      fetchPrediction();
-    }
-  }, [readings.length]);
+    loadPrediction();
+    const id = setInterval(loadPrediction, 10000);
+    return () => clearInterval(id);
+  }, []);
 
-  function getReadingsByType(type) {
-    const typeSensors = sensors.filter((s) => s.type === type);
-    const sensorIds = new Set(typeSensors.map((s) => s.id));
-    return readings
-      .filter((r) => sensorIds.has(r.sensorId))
-      .slice(-12)
-      .map((r) => Number(r.value));
-  }
-
-  async function fetchIaHealth() {
-    try {
-      const resp = await fetch('/api/ia/health');
-      setIaHealth(resp.ok ? 'UP' : 'DOWN');
-    } catch {
-      setIaHealth('DOWN');
-    }
-  }
-
-  async function fetchPrediction() {
-    const temps = getReadingsByType('TEMPERATURE');
-    const hums = getReadingsByType('HUMIDITY');
-    if (temps.length < 2 && hums.length < 2) return;
-
-    try {
-      const resp = await fetch('/api/ia/predict', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ temperature: temps, humidity: hums })
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        setPrediction(data);
-        fetchRecommendation(data);
-      }
-    } catch {}
-  }
-
-  async function fetchRecommendation(pred) {
-    if (!pred || pred.riskLevel === 'UNAVAILABLE') return;
-    try {
-      const resp = await fetch('/api/ia/recommend', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          predictedTemperature: pred.predictedTemperature,
-          predictedHumidity: pred.predictedHumidity,
-          riskLevel: pred.riskLevel
-        })
-      });
-      if (resp.ok) {
-        setRecommendation(await resp.json());
-      }
-    } catch {}
-  }
-
-  const riskColor = RISK_COLORS[prediction?.riskLevel] ?? RISK_COLORS.UNAVAILABLE;
-  const iaOnline = iaHealth === 'UP';
+  const trendArrow = prediction?.trend === 'UP' ? '\u2191' : prediction?.trend === 'DOWN' ? '\u2193' : '\u2192';
+  const riskClass = RISK_CLASSES[prediction?.riskLevel] || '';
 
   return (
-    <Section title={t.iaTitle ?? 'Inteligencia Artificial'} subtitle={t.iaSubtitle ?? 'Predicciones y recomendaciones basadas en lecturas de sensores'}>
-      <div className="metrics">
-        <Metric icon={<FlaskConical />} label={t.iaStatus ?? 'Estado IA'} value={iaOnline ? 'Online' : 'Offline'} tone={iaOnline ? 'normal' : 'warning'} />
-        <Metric icon={<TrendingUp />} label={t.predictedTemp ?? 'Temp. pronosticada'} value={prediction?.predictedTemperature != null ? `${prediction.predictedTemperature}°C` : '--'} />
-        <Metric icon={<Droplets />} label={t.predictedHum ?? 'Humedad pronosticada'} value={prediction?.predictedHumidity != null ? `${prediction.predictedHumidity}%` : '--'} />
-        <Metric icon={<Shield />} label={t.riskLevel ?? 'Nivel de riesgo'} value={prediction?.riskLevel ?? '--'} tone={prediction?.riskLevel === 'HIGH' ? 'warning' : 'normal'} />
-      </div>
+    <Section title={t.iaTitle} subtitle={t.iaSubtitle}>
+      {loading && !prediction && (
+        <div className="loadingOverlay minimal">
+          <Loader className="spin" size={24} />
+          <p>{t.analyzing}</p>
+        </div>
+      )}
 
-      {iaOnline && prediction && (
+      {error && (
+        <Panel title={t.error}>
+          <p className="errorText">{error}</p>
+          <button className="btnPrimary" onClick={loadPrediction}>{t.retry}</button>
+        </Panel>
+      )}
+
+      {prediction && (
         <div className="dashboardGrid">
-          <Panel title={t.predictionDetails ?? 'Detalle de prediccion'}>
+          <Panel title={t.predictionDetails}>
             <div className="iaPredictionGrid">
-              <div className="iaCard" style={{ borderColor: riskColor.text }}>
-                <Thermometer size={24} style={{ color: riskColor.text }} />
-                <span className="iaLabel">{t.temperature}</span>
-                <strong className="iaValue">{prediction.predictedTemperature ?? '--'}°C</strong>
-                <span className="iaBadge" style={{ background: riskColor.bg, color: riskColor.text }}>
-                  {prediction.anomalies?.temperature ? '⚠ Anomalia' : '✓ Normal'}
-                </span>
+              <div className="iaCard">
+                <Thermometer size={24} style={{ color: 'var(--accent)' }} />
+                <span className="iaLabel">{t.predictedTemp}</span>
+                <strong className="iaValue">
+                  {prediction.predictedTemperature != null ? `${prediction.predictedTemperature}°C` : '--'}
+                </strong>
               </div>
               <div className="iaCard">
-                <Droplets size={24} style={{ color: '#0ea5e9' }} />
-                <span className="iaLabel">{t.humidity}</span>
-                <strong className="iaValue">{prediction.predictedHumidity ?? '--'}%</strong>
-                <span className="iaBadge" style={{
-                  background: prediction.anomalies?.humidity ? 'rgba(255,91,91,0.12)' : 'rgba(0,204,122,0.12)',
-                  color: prediction.anomalies?.humidity ? '#ff5b5b' : '#00cc7a'
-                }}>
-                  {prediction.anomalies?.humidity ? '⚠ Anomalia' : '✓ Normal'}
-                </span>
+                <Droplets size={24} style={{ color: 'var(--cyan)' }} />
+                <span className="iaLabel">{t.predictedHum}</span>
+                <strong className="iaValue">
+                  {prediction.predictedHumidity != null ? `${prediction.predictedHumidity}%` : '--'}
+                </strong>
               </div>
-              <div className="iaCard" style={{ borderColor: riskColor.text, background: riskColor.bg }}>
-                <AlertTriangle size={24} style={{ color: riskColor.text }} />
-                <span className="iaLabel">{t.riskLevel ?? 'Riesgo'}</span>
-                <strong className="iaValue" style={{ color: riskColor.text }}>{prediction.riskLevel}</strong>
+              <div className="iaCard">
+                <Shield size={24} style={{ color: 'var(--accent)' }} />
+                <span className="iaLabel">{t.riskLevel}</span>
+                <span className={`iaBadge ${riskClass}`}>{prediction.riskLevel || '--'}</span>
+              </div>
+              <div className="iaCard">
+                <TrendingUp size={24} style={{ color: 'var(--accent)' }} />
+                <span className="iaLabel">{t.trend}</span>
+                <strong className="iaValue">{trendArrow}</strong>
               </div>
             </div>
           </Panel>
 
-          {recommendation && (
-            <Panel title={t.recommendation ?? 'Recomendacion'}>
-              <div className="iaRecommendation">
-                <Cpu size={32} style={{ color: riskColor.text }} />
-                <strong>{recommendation.action?.replace(/_/g, ' ')}</strong>
-                <p>{recommendation.reason}</p>
-              </div>
-            </Panel>
-          )}
+          <Panel title={t.recommendation}>
+            <div className="iaRecommendation">
+              <p>{prediction.recommendation || t.noRecords}</p>
+            </div>
+          </Panel>
         </div>
-      )}
-
-      {!iaOnline && (
-        <Panel title={t.iaStatus ?? 'Estado IA'}>
-          <p className="emptyState">{t.iaOffline ?? 'El servicio de IA no esta disponible. Inicia el microservicio Flask en el puerto 5000.'}</p>
-        </Panel>
       )}
     </Section>
   );
