@@ -24,4 +24,10 @@ public class AuditLog {
 
   @Enumerated(EnumType.STRING)
   public ActionOrigin origin = ActionOrigin.MANUAL;
+
+  @jakarta.persistence.ManyToOne(fetch = jakarta.persistence.FetchType.LAZY)
+  public Greenhouse greenhouse;
+
+  @jakarta.persistence.ManyToOne(fetch = jakarta.persistence.FetchType.LAZY)
+  public AppUser user;
 }

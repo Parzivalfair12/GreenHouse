@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,7 +23,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.transaction.annotation.Transactional;
 
 /** REST endpoints for greenhouse management. */
 @Tag(name = "Invernaderos", description = "Gestion de invernaderos, cultivos, sensores y riegos")
@@ -38,7 +38,6 @@ public class GreenhouseController {
   @Operation(summary = "Listar invernaderos", description = "Devuelve todos los invernaderos activos")
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Lista de invernaderos")})
   @GetMapping
-  @Transactional(readOnly = true)
   @PreAuthorize("isAuthenticated()")
   public List<GreenhouseResponse> findAll() {
     return service.findAll().stream().map(GreenhouseResponse::from).toList();
@@ -50,7 +49,6 @@ public class GreenhouseController {
       @ApiResponse(responseCode = "404", description = "Invernadero no encontrado")
   })
   @GetMapping("/{id}")
-  @Transactional(readOnly = true)
   @PreAuthorize("isAuthenticated()")
   public GreenhouseResponse findById(@PathVariable long id) {
     return GreenhouseResponse.from(service.findById(id));
@@ -62,7 +60,6 @@ public class GreenhouseController {
       @ApiResponse(responseCode = "403", description = "No autorizado")
   })
   @PostMapping
-  @Transactional
   @ResponseStatus(HttpStatus.CREATED)
   @PreAuthorize("hasRole('ADMIN')")
   public GreenhouseResponse create(@Valid @RequestBody GreenhouseRequest request) {
@@ -71,21 +68,26 @@ public class GreenhouseController {
 
   @Operation(summary = "Actualizar invernadero", description = "Modifica un invernadero existente (requiere ADMIN)")
   @PutMapping("/{id}")
-  @Transactional
   @PreAuthorize("hasRole('ADMIN')")
   public GreenhouseResponse update(@PathVariable long id, @Valid @RequestBody GreenhouseRequest request) {
     return GreenhouseResponse.from(service.update(id, request));
   }
 
+  @Operation(summary = "Eliminar invernadero", description = "Elimina un invernadero y todos sus datos asociados (requiere ADMIN)")
+  @DeleteMapping("/{id}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @PreAuthorize("hasRole('ADMIN')")
+  public void delete(@PathVariable long id) {
+    service.delete(id);
+  }
+
   @PostMapping("/{id}/crops")
-  @Transactional
   @PreAuthorize("hasRole('ADMIN')")
   public GreenhouseResponse addCrop(@PathVariable long id, @Valid @RequestBody CropRequest request) {
     return GreenhouseResponse.from(service.addCrop(id, request));
   }
 
   @PutMapping("/{id}/crops/{cropId}")
-  @Transactional
   @PreAuthorize("hasRole('ADMIN')")
   public GreenhouseResponse updateCrop(
       @PathVariable long id,
@@ -94,15 +96,20 @@ public class GreenhouseController {
     return GreenhouseResponse.from(service.updateCrop(id, cropId, request));
   }
 
+  @DeleteMapping("/{id}/crops/{cropId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @PreAuthorize("hasRole('ADMIN')")
+  public void deleteCrop(@PathVariable long id, @PathVariable long cropId) {
+    service.deleteCrop(id, cropId);
+  }
+
   @PostMapping("/{id}/sensors")
-  @Transactional
   @PreAuthorize("hasRole('ADMIN')")
   public GreenhouseResponse addSensor(@PathVariable long id, @Valid @RequestBody SensorRequest request) {
     return GreenhouseResponse.from(service.addSensor(id, request));
   }
 
   @PutMapping("/{id}/sensors/{sensorId}")
-  @Transactional
   @PreAuthorize("hasRole('ADMIN')")
   public GreenhouseResponse updateSensor(
       @PathVariable long id,
@@ -111,20 +118,32 @@ public class GreenhouseController {
     return GreenhouseResponse.from(service.updateSensor(id, sensorId, request));
   }
 
+  @DeleteMapping("/{id}/sensors/{sensorId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @PreAuthorize("hasRole('ADMIN')")
+  public void deleteSensor(@PathVariable long id, @PathVariable long sensorId) {
+    service.deleteSensor(id, sensorId);
+  }
+
   @PostMapping("/{id}/irrigation-events")
-  @Transactional
   @PreAuthorize("hasRole('ADMIN')")
   public GreenhouseResponse addIrrigation(@PathVariable long id, @Valid @RequestBody IrrigationRequest request) {
     return GreenhouseResponse.from(service.addIrrigation(id, request));
   }
 
   @PutMapping("/{id}/irrigation-events/{eventId}")
-  @Transactional
   @PreAuthorize("hasRole('ADMIN')")
   public GreenhouseResponse updateIrrigation(
       @PathVariable long id,
       @PathVariable long eventId,
       @Valid @RequestBody IrrigationRequest request) {
     return GreenhouseResponse.from(service.updateIrrigation(id, eventId, request));
+  }
+
+  @DeleteMapping("/{id}/irrigation-events/{eventId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @PreAuthorize("hasRole('ADMIN')")
+  public void deleteIrrigation(@PathVariable long id, @PathVariable long eventId) {
+    service.deleteIrrigation(id, eventId);
   }
 }

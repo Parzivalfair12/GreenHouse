@@ -32,4 +32,13 @@ public class IrrigationEvent {
 
   @ManyToOne(fetch = FetchType.LAZY)
   public Greenhouse greenhouse;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  public Actuator actuator;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  public Zone zone;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  public AutomationRule rule;
 }

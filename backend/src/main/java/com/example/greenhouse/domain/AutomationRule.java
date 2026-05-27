@@ -29,4 +29,10 @@ public class AutomationRule {
 
   @ManyToOne(fetch = FetchType.LAZY)
   public Greenhouse greenhouse;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  public Sensor sensor;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  public Actuator actuator;
 }

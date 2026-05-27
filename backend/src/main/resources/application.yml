@@ -22,10 +22,28 @@ spring:
             client-secret: ${GOOGLE_CLIENT_SECRET}
             scope: openid,email,profile
 
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+    username: ${SMTP_USER:}
+    password: ${SMTP_PASS:}
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
   jwt-secret: ${JWT_SECRET:mi_clave_secreta_para_desarrollo_12345678901234567890}
   jwt-expiration-ms: 86400000
+
+greenhouse:
+  seeder:
+    admin-password: ${ADMIN_PASSWORD:admin1234}
+  email:
+    enabled: ${EMAIL_ENABLED:false}
 
 springdoc:
   swagger-ui:

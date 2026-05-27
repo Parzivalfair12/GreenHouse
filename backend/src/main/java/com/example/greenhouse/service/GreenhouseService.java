@@ -12,12 +12,16 @@ import com.example.greenhouse.web.dto.IrrigationRequest;
 import com.example.greenhouse.web.dto.SensorRequest;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Business operations for greenhouse records. */
 @Service
 public class GreenhouseService {
+  private static final Logger log = LoggerFactory.getLogger(GreenhouseService.class);
+
   private final GreenhouseRepository repository;
 
   public GreenhouseService(GreenhouseRepository repository) {
@@ -41,7 +45,9 @@ public class GreenhouseService {
     greenhouse.location = request.location();
     greenhouse.areaSquareMeters = request.areaSquareMeters();
     greenhouse.active = request.active();
-    return repository.save(greenhouse);
+    Greenhouse saved = repository.save(greenhouse);
+    log.info("Created greenhouse: {}", saved.name);
+    return saved;
   }
 
   @Transactional
@@ -51,7 +57,15 @@ public class GreenhouseService {
     greenhouse.location = request.location();
     greenhouse.areaSquareMeters = request.areaSquareMeters();
     greenhouse.active = request.active();
+    log.info("Updated greenhouse: {}", greenhouse.name);
     return repository.saveAndFlush(greenhouse);
+  }
+
+  @Transactional
+  public void delete(long id) {
+    Greenhouse greenhouse = findById(id);
+    repository.delete(greenhouse);
+    log.info("Deleted greenhouse: {}", id);
   }
 
   @Transactional
@@ -64,6 +78,7 @@ public class GreenhouseService {
     crop.expectedHarvestAt = request.expectedHarvestAt();
     crop.greenhouse = greenhouse;
     greenhouse.crops.add(crop);
+    log.info("Added crop {} to greenhouse {}", crop.name, greenhouseId);
     return repository.saveAndFlush(greenhouse);
   }
 
@@ -78,7 +93,20 @@ public class GreenhouseService {
     crop.variety = request.variety();
     crop.plantedAt = request.plantedAt();
     crop.expectedHarvestAt = request.expectedHarvestAt();
+    log.info("Updated crop {} in greenhouse {}", cropId, greenhouseId);
     return repository.saveAndFlush(greenhouse);
+  }
+
+  @Transactional
+  public void deleteCrop(long greenhouseId, long cropId) {
+    Greenhouse greenhouse = findById(greenhouseId);
+    Crop crop = greenhouse.crops.stream()
+        .filter(item -> item.id == cropId)
+        .findFirst()
+        .orElseThrow(() -> new IllegalArgumentException("Crop not found"));
+    greenhouse.crops.remove(crop);
+    log.info("Deleted crop {} from greenhouse {}", cropId, greenhouseId);
+    repository.saveAndFlush(greenhouse);
   }
 
   @Transactional
@@ -92,6 +120,7 @@ public class GreenhouseService {
     sensor.maxThreshold = request.maxThreshold();
     sensor.greenhouse = greenhouse;
     greenhouse.sensors.add(sensor);
+    log.info("Added sensor {} to greenhouse {}", sensor.code, greenhouseId);
     return repository.saveAndFlush(greenhouse);
   }
 
@@ -107,7 +136,20 @@ public class GreenhouseService {
     sensor.unit = request.unit();
     sensor.minThreshold = request.minThreshold();
     sensor.maxThreshold = request.maxThreshold();
+    log.info("Updated sensor {} in greenhouse {}", sensorId, greenhouseId);
     return repository.saveAndFlush(greenhouse);
+  }
+
+  @Transactional
+  public void deleteSensor(long greenhouseId, long sensorId) {
+    Greenhouse greenhouse = findById(greenhouseId);
+    Sensor sensor = greenhouse.sensors.stream()
+        .filter(item -> item.id == sensorId)
+        .findFirst()
+        .orElseThrow(() -> new IllegalArgumentException("Sensor not found"));
+    greenhouse.sensors.remove(sensor);
+    log.info("Deleted sensor {} from greenhouse {}", sensorId, greenhouseId);
+    repository.saveAndFlush(greenhouse);
   }
 
   @Transactional
@@ -120,6 +162,7 @@ public class GreenhouseService {
     event.mode = request.mode() == null ? IrrigationMode.MANUAL : request.mode();
     event.greenhouse = greenhouse;
     greenhouse.irrigationEvents.add(event);
+    log.info("Added irrigation event to greenhouse {}", greenhouseId);
     return repository.saveAndFlush(greenhouse);
   }
 
@@ -133,6 +176,19 @@ public class GreenhouseService {
     event.durationMinutes = request.durationMinutes();
     event.waterLiters = request.waterLiters();
     event.mode = request.mode() == null ? IrrigationMode.MANUAL : request.mode();
+    log.info("Updated irrigation event {} in greenhouse {}", eventId, greenhouseId);
     return repository.saveAndFlush(greenhouse);
+  }
+
+  @Transactional
+  public void deleteIrrigation(long greenhouseId, long eventId) {
+    Greenhouse greenhouse = findById(greenhouseId);
+    IrrigationEvent event = greenhouse.irrigationEvents.stream()
+        .filter(item -> item.id == eventId)
+        .findFirst()
+        .orElseThrow(() -> new IllegalArgumentException("Irrigation event not found"));
+    greenhouse.irrigationEvents.remove(event);
+    log.info("Deleted irrigation event {} from greenhouse {}", eventId, greenhouseId);
+    repository.saveAndFlush(greenhouse);
   }
 }

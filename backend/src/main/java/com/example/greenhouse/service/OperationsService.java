@@ -7,6 +7,8 @@ import com.example.greenhouse.domain.Alert;
 import com.example.greenhouse.domain.AlertSeverity;
 import com.example.greenhouse.domain.AutomationRule;
 import com.example.greenhouse.domain.Greenhouse;
+import com.example.greenhouse.domain.IrrigationEvent;
+import com.example.greenhouse.domain.IrrigationMode;
 import com.example.greenhouse.domain.Reading;
 import com.example.greenhouse.domain.RuleType;
 import com.example.greenhouse.domain.Sensor;
@@ -16,6 +18,7 @@ import com.example.greenhouse.repository.ActuatorRepository;
 import com.example.greenhouse.repository.AlertRepository;
 import com.example.greenhouse.repository.AutomationRuleRepository;
 import com.example.greenhouse.repository.GreenhouseRepository;
+import com.example.greenhouse.repository.IrrigationEventRepository;
 import com.example.greenhouse.repository.ReadingRepository;
 import com.example.greenhouse.repository.SensorRepository;
 import com.example.greenhouse.repository.ZoneRepository;
@@ -26,11 +29,15 @@ import com.example.greenhouse.web.dto.SensorRequest;
 import com.example.greenhouse.web.dto.ZoneRequest;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class OperationsService {
+  private static final Logger log = LoggerFactory.getLogger(OperationsService.class);
+
   private final GreenhouseRepository greenhouses;
   private final ZoneRepository zones;
   private final SensorRepository sensors;
@@ -38,6 +45,7 @@ public class OperationsService {
   private final ActuatorRepository actuators;
   private final AlertRepository alerts;
   private final AutomationRuleRepository rules;
+  private final IrrigationEventRepository irrigationEvents;
   private final AuditLogService audit;
 
   public OperationsService(
@@ -48,6 +56,7 @@ public class OperationsService {
       ActuatorRepository actuators,
       AlertRepository alerts,
       AutomationRuleRepository rules,
+      IrrigationEventRepository irrigationEvents,
       AuditLogService audit) {
     this.greenhouses = greenhouses;
     this.zones = zones;
@@ -56,6 +65,7 @@ public class OperationsService {
     this.actuators = actuators;
     this.alerts = alerts;
     this.rules = rules;
+    this.irrigationEvents = irrigationEvents;
     this.audit = audit;
   }
 
@@ -89,6 +99,19 @@ public class OperationsService {
   @Transactional(readOnly = true)
   public List<Sensor> findSensors() {
     return sensors.findAll();
+  }
+
+  @Transactional
+  public Sensor createSensor(SensorRequest request) {
+    Sensor sensor = new Sensor();
+    sensor.code = request.code();
+    sensor.type = request.type();
+    sensor.unit = request.unit();
+    sensor.minThreshold = request.minThreshold();
+    sensor.maxThreshold = request.maxThreshold();
+    sensor.greenhouse = greenhouses.findById(request.greenhouseId()).orElseThrow();
+    audit.log("Crear sensor", sensor.code, ActionOrigin.MANUAL);
+    return sensors.save(sensor);
   }
 
   @Transactional
@@ -218,6 +241,12 @@ public class OperationsService {
     rule.threshold = request.threshold();
     rule.enabled = request.enabled();
     rule.greenhouse = greenhouses.findById(request.greenhouseId()).orElseThrow();
+    if (request.sensorId() != null) {
+      rule.sensor = sensors.findById(request.sensorId()).orElse(null);
+    }
+    if (request.actuatorId() != null) {
+      rule.actuator = actuators.findById(request.actuatorId()).orElse(null);
+    }
   }
 
   private void evaluateThresholds(Sensor sensor, Reading reading) {
@@ -234,18 +263,64 @@ public class OperationsService {
       return;
     }
     List<AutomationRule> activeRules = rules.findByEnabledTrueAndTypeAndGreenhouseId(
-        RuleType.LOW_HUMIDITY_IRRIGATION,
-        sensor.greenhouse.id);
+        RuleType.LOW_HUMIDITY_IRRIGATION, sensor.greenhouse.id);
     for (AutomationRule rule : activeRules) {
-      if (reading.value.compareTo(rule.threshold) < 0) {
-        actuators.findFirstByGreenhouseIdAndTypeAndActiveTrue(sensor.greenhouse.id, ActuatorType.IRRIGATION)
-            .ifPresent(actuator -> {
-              actuator.enabled = true;
-              actuators.save(actuator);
-              audit.log("Regla automatica", "Humedad baja activo " + actuator.name, ActionOrigin.AUTOMATIC);
-            });
-        createAlert(sensor, "Humedad baja: riego simulado activado");
+      // Only evaluate if rule.sensor is null (global) or matches the current sensor
+      if (rule.sensor != null && !rule.sensor.id.equals(sensor.id)) {
+        continue;
       }
+      if (reading.value.compareTo(rule.threshold) < 0) {
+        activateIrrigationFromRule(rule, sensor, reading);
+      } else {
+        deactivateIrrigationFromRule(rule, sensor, reading);
+      }
+    }
+  }
+
+  private void activateIrrigationFromRule(AutomationRule rule, Sensor sensor, Reading reading) {
+    Actuator target = rule.actuator;
+    if (target == null) {
+      target = actuators.findFirstByGreenhouseIdAndTypeAndActiveTrue(sensor.greenhouse.id, ActuatorType.IRRIGATION)
+          .orElse(null);
+    }
+    if (target == null) {
+      log.warn("No irrigation actuator found for greenhouse {} on rule {}", sensor.greenhouse.id, rule.id);
+      createAlert(sensor, "Humedad baja: no hay actuador de riego disponible");
+      return;
+    }
+    if (!target.enabled) {
+      target.enabled = true;
+      actuators.save(target);
+      IrrigationEvent event = new IrrigationEvent();
+      event.startedAt = LocalDateTime.now();
+      event.durationMinutes = 10; // default automatic duration
+      event.waterLiters = java.math.BigDecimal.valueOf(5.0); // default
+      event.mode = com.example.greenhouse.domain.IrrigationMode.AUTOMATIC;
+      event.greenhouse = sensor.greenhouse;
+      event.actuator = target;
+      event.rule = rule;
+      if (sensor.zone != null) {
+        event.zone = sensor.zone;
+      }
+      irrigationEvents.save(event);
+      audit.log("Regla automatica", "Humedad baja activo " + target.name + " por regla " + rule.name, ActionOrigin.AUTOMATIC);
+      log.info("Activated actuator {} for rule {} in greenhouse {}", target.id, rule.id, sensor.greenhouse.id);
+    }
+    createAlert(sensor, "Humedad baja: riego automatico activado por regla " + rule.name);
+  }
+
+  private void deactivateIrrigationFromRule(AutomationRule rule, Sensor sensor, Reading reading) {
+    Actuator target = rule.actuator;
+    if (target == null) {
+      // Try to find any enabled irrigation actuator in this greenhouse to deactivate
+      target = actuators.findFirstByGreenhouseIdAndTypeAndActiveTrue(sensor.greenhouse.id, ActuatorType.IRRIGATION)
+          .orElse(null);
+    }
+    if (target != null && target.enabled) {
+      target.enabled = false;
+      actuators.save(target);
+      audit.log("Regla automatica", "Humedad normal desactivo " + target.name + " por regla " + rule.name, ActionOrigin.AUTOMATIC);
+      log.info("Deactivated actuator {} for rule {} in greenhouse {}", target.id, rule.id, sensor.greenhouse.id);
     }
   }
 

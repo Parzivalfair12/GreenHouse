@@ -9,8 +9,8 @@ import jakarta.persistence.OneToMany;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 /** Physical greenhouse that groups crops, sensors and irrigation events. */
 @Entity
@@ -31,20 +31,20 @@ public class Greenhouse {
   public boolean active = true;
 
   @OneToMany(mappedBy = "greenhouse", cascade = CascadeType.ALL, orphanRemoval = true)
-  public List<Crop> crops = new ArrayList<>();
+  public Set<Crop> crops = new LinkedHashSet<>();
 
   @OneToMany(mappedBy = "greenhouse", cascade = CascadeType.ALL, orphanRemoval = true)
-  public List<Sensor> sensors = new ArrayList<>();
+  public Set<Sensor> sensors = new LinkedHashSet<>();
 
   @OneToMany(mappedBy = "greenhouse", cascade = CascadeType.ALL, orphanRemoval = true)
-  public List<Zone> zones = new ArrayList<>();
+  public Set<Zone> zones = new LinkedHashSet<>();
 
   @OneToMany(mappedBy = "greenhouse", cascade = CascadeType.ALL, orphanRemoval = true)
-  public List<Actuator> actuators = new ArrayList<>();
+  public Set<Actuator> actuators = new LinkedHashSet<>();
 
   @OneToMany(mappedBy = "greenhouse", cascade = CascadeType.ALL, orphanRemoval = true)
-  public List<AutomationRule> rules = new ArrayList<>();
+  public Set<AutomationRule> rules = new LinkedHashSet<>();
 
   @OneToMany(mappedBy = "greenhouse", cascade = CascadeType.ALL, orphanRemoval = true)
-  public List<IrrigationEvent> irrigationEvents = new ArrayList<>();
+  public Set<IrrigationEvent> irrigationEvents = new LinkedHashSet<>();
 }

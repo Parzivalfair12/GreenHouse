@@ -10,4 +10,6 @@ public record AutomationRuleRequest(
     @NotNull RuleType type,
     @NotNull BigDecimal threshold,
     boolean enabled,
-    @NotNull Long greenhouseId) {}
+    @NotNull Long greenhouseId,
+    Long sensorId,
+    Long actuatorId) {}

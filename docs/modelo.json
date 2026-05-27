@@ -88,6 +88,9 @@
       "fields": [
         { "name": "id", "type": "Long", "pk": true, "nullable": false, "description": "Identificador unico" },
         { "name": "greenhouse_id", "type": "Long", "fk": true, "references": { "entity": "Greenhouse", "field": "id", "cardinality": "N:1" }, "nullable": false, "description": "Foreign key to Greenhouse" },
+        { "name": "actuator_id", "type": "Long", "fk": true, "references": { "entity": "Actuator", "field": "id", "cardinality": "N:1" }, "nullable": true, "description": "Actuador que ejecuto el riego" },
+        { "name": "zone_id", "type": "Long", "fk": true, "references": { "entity": "Zone", "field": "id", "cardinality": "N:1" }, "nullable": true, "description": "Zona donde se ejecuto el riego" },
+        { "name": "rule_id", "type": "Long", "fk": true, "references": { "entity": "AutomationRule", "field": "id", "cardinality": "N:1" }, "nullable": true, "description": "Regla que activo el riego" },
         { "name": "startedAt", "type": "LocalDateTime", "nullable": true, "description": "Fecha y hora de inicio" },
         { "name": "durationMinutes", "type": "int", "nullable": false, "validation": "@Positive", "description": "Duracion en minutos" },
         { "name": "waterLiters", "type": "BigDecimal", "nullable": false, "validation": "@Positive", "description": "Litros de agua utilizados" },
@@ -139,6 +142,8 @@
       "fields": [
         { "name": "id", "type": "Long", "pk": true, "nullable": false, "description": "Identificador unico" },
         { "name": "greenhouse_id", "type": "Long", "fk": true, "references": { "entity": "Greenhouse", "field": "id", "cardinality": "N:1" }, "nullable": false, "description": "Foreign key to Greenhouse" },
+        { "name": "sensor_id", "type": "Long", "fk": true, "references": { "entity": "Sensor", "field": "id", "cardinality": "N:1" }, "nullable": true, "description": "Sensor trigger para la regla" },
+        { "name": "actuator_id", "type": "Long", "fk": true, "references": { "entity": "Actuator", "field": "id", "cardinality": "N:1" }, "nullable": true, "description": "Actuador target de la regla" },
         { "name": "name", "type": "String", "nullable": false, "validation": "@NotBlank", "description": "Nombre de la regla" },
         { "name": "type", "type": "RuleType", "nullable": false, "enum": ["LOW_HUMIDITY_IRRIGATION"], "description": "Tipo de regla" },
         { "name": "threshold", "type": "BigDecimal", "nullable": true, "description": "Umbral de la regla" },
@@ -169,6 +174,8 @@
       "permissions": ["ADMIN:READ", "VIEWER:READ"],
       "fields": [
         { "name": "id", "type": "Long", "pk": true, "nullable": false, "description": "Identificador unico" },
+        { "name": "greenhouse_id", "type": "Long", "fk": true, "references": { "entity": "Greenhouse", "field": "id", "cardinality": "N:1" }, "nullable": true, "description": "Invernadero afectado" },
+        { "name": "user_id", "type": "Long", "fk": true, "references": { "entity": "AppUser", "field": "id", "cardinality": "N:1" }, "nullable": true, "description": "Usuario que realizo la accion" },
         { "name": "action", "type": "String", "nullable": false, "validation": "@NotBlank", "description": "Accion realizada" },
         { "name": "detail", "type": "String", "nullable": true, "description": "Detalle de la accion" },
         { "name": "createdAt", "type": "LocalDateTime", "nullable": false, "default": "now()", "description": "Fecha de creacion" },
@@ -227,6 +234,13 @@
     { "from": "Alert", "to": "Sensor", "type": "ManyToOne", "fk": "sensor_id", "cardinality": "N:1" },
     { "from": "Actuator", "to": "Greenhouse", "type": "ManyToOne", "fk": "greenhouse_id", "cardinality": "N:1" },
     { "from": "AutomationRule", "to": "Greenhouse", "type": "ManyToOne", "fk": "greenhouse_id", "cardinality": "N:1" },
+    { "from": "AutomationRule", "to": "Sensor", "type": "ManyToOne", "fk": "sensor_id", "cardinality": "N:1" },
+    { "from": "AutomationRule", "to": "Actuator", "type": "ManyToOne", "fk": "actuator_id", "cardinality": "N:1" },
+    { "from": "IrrigationEvent", "to": "Actuator", "type": "ManyToOne", "fk": "actuator_id", "cardinality": "N:1" },
+    { "from": "IrrigationEvent", "to": "Zone", "type": "ManyToOne", "fk": "zone_id", "cardinality": "N:1" },
+    { "from": "IrrigationEvent", "to": "AutomationRule", "type": "ManyToOne", "fk": "rule_id", "cardinality": "N:1" },
+    { "from": "AuditLog", "to": "Greenhouse", "type": "ManyToOne", "fk": "greenhouse_id", "cardinality": "N:1" },
+    { "from": "AuditLog", "to": "AppUser", "type": "ManyToOne", "fk": "user_id", "cardinality": "N:1" },
     { "from": "Zone", "to": "Greenhouse", "type": "ManyToOne", "fk": "greenhouse_id", "cardinality": "N:1" }
   ]
 }

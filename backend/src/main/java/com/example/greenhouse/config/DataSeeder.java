@@ -17,6 +17,7 @@ import com.example.greenhouse.repository.AppUserRepository;
 import com.example.greenhouse.repository.GreenhouseRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -25,6 +26,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 /** Inserts demo data that matches the documented JSON model. */
 @Configuration
 public class DataSeeder {
+  @Value("${greenhouse.seeder.admin-password:admin1234}")
+  private String adminPassword;
+
   @Bean
   CommandLineRunner seedGreenhouseData(
       GreenhouseRepository repository,
@@ -35,7 +39,7 @@ public class DataSeeder {
         AppUser admin = new AppUser();
         admin.email = "admin@greenhouse.local";
         admin.fullName = "Administrador";
-        admin.passwordHash = passwordEncoder.encode("admin1234");
+        admin.passwordHash = passwordEncoder.encode(adminPassword);
         admin.provider = "email";
         admin.role = UserRole.ADMIN;
         return users.save(admin);

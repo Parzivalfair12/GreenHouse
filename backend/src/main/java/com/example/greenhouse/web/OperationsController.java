@@ -10,6 +10,7 @@ import com.example.greenhouse.web.dto.AutomationRuleResponse;
 import com.example.greenhouse.web.dto.ReadingRequest;
 import com.example.greenhouse.web.dto.ReadingResponse;
 import com.example.greenhouse.web.dto.SensorRequest;
+import com.example.greenhouse.web.dto.SensorResponse;
 import com.example.greenhouse.web.dto.ZoneRequest;
 import com.example.greenhouse.web.dto.ZoneResponse;
 import jakarta.validation.Valid;
@@ -25,7 +26,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.transaction.annotation.Transactional;
 
 @RestController
 @RequestMapping("/api")
@@ -39,7 +39,6 @@ public class OperationsController {
   }
 
   @GetMapping("/zones")
-  @Transactional(readOnly = true)
   @PreAuthorize("isAuthenticated()")
   public List<ZoneResponse> zones() {
     return service.findZones().stream().map(ZoneResponse::from).toList();
@@ -66,27 +65,22 @@ public class OperationsController {
   }
 
   @GetMapping("/sensors")
-  @Transactional(readOnly = true)
   @PreAuthorize("isAuthenticated()")
-  public List<?> sensors() {
-    return service.findSensors().stream()
-        .map(sensor -> java.util.Map.of(
-            "id", sensor.id,
-            "code", sensor.code,
-            "type", sensor.type.name(),
-            "unit", sensor.unit,
-            "minThreshold", sensor.minThreshold,
-            "maxThreshold", sensor.maxThreshold,
-            "greenhouseId", sensor.greenhouse.id,
-            "greenhouseName", sensor.greenhouse.name))
-        .toList();
+  public List<SensorResponse> sensors() {
+    return service.findSensors().stream().map(SensorResponse::from).toList();
+  }
+
+  @PostMapping("/sensors")
+  @ResponseStatus(HttpStatus.CREATED)
+  @PreAuthorize("hasAnyRole('ADMIN', 'OPERATOR')")
+  public SensorResponse createSensor(@Valid @RequestBody SensorRequest request) {
+    return SensorResponse.from(service.createSensor(request));
   }
 
   @PutMapping("/sensors/{id}")
   @PreAuthorize("hasAnyRole('ADMIN', 'OPERATOR')")
-  public Object updateSensor(@PathVariable long id, @Valid @RequestBody SensorRequest request) {
-    var sensor = service.updateSensor(id, request);
-    return java.util.Map.of("id", sensor.id, "code", sensor.code, "type", sensor.type.name(), "unit", sensor.unit);
+  public SensorResponse updateSensor(@PathVariable long id, @Valid @RequestBody SensorRequest request) {
+    return SensorResponse.from(service.updateSensor(id, request));
   }
 
   @DeleteMapping("/sensors/{id}")
@@ -97,7 +91,6 @@ public class OperationsController {
   }
 
   @GetMapping("/readings")
-  @Transactional(readOnly = true)
   @PreAuthorize("isAuthenticated()")
   public List<ReadingResponse> readings() {
     return service.findReadings().stream().map(ReadingResponse::from).toList();
@@ -124,7 +117,6 @@ public class OperationsController {
   }
 
   @GetMapping("/actuators")
-  @Transactional(readOnly = true)
   @PreAuthorize("isAuthenticated()")
   public List<ActuatorResponse> actuators() {
     return service.findActuators().stream().map(ActuatorResponse::from).toList();
@@ -151,7 +143,6 @@ public class OperationsController {
   }
 
   @GetMapping("/rules")
-  @Transactional(readOnly = true)
   @PreAuthorize("isAuthenticated()")
   public List<AutomationRuleResponse> rules() {
     return service.findRules().stream().map(AutomationRuleResponse::from).toList();

@@ -3,6 +3,7 @@ package com.example.greenhouse.web;
 import com.example.greenhouse.config.JwtTokenProvider;
 import com.example.greenhouse.domain.AppUser;
 import com.example.greenhouse.service.AuthService;
+import com.example.greenhouse.service.EmailService;
 import com.example.greenhouse.web.dto.LoginRequest;
 import com.example.greenhouse.web.dto.LoginResponse;
 import com.example.greenhouse.web.dto.UserCreateRequest;
@@ -35,15 +36,21 @@ import org.springframework.web.server.ResponseStatusException;
 public class AuthController {
   private final AuthService service;
   private final JwtTokenProvider jwtTokenProvider;
+  private final EmailService emailService;
   private final long expirationMs;
   private final MessageSource messages;
+  private final boolean emailEnabled;
 
   public AuthController(AuthService service, JwtTokenProvider jwtTokenProvider,
+      EmailService emailService,
       @Value("${app.jwt-expiration-ms}") long expirationMs,
+      @Value("${greenhouse.email.enabled:false}") boolean emailEnabled,
       MessageSource messages) {
     this.service = service;
     this.jwtTokenProvider = jwtTokenProvider;
+    this.emailService = emailService;
     this.expirationMs = expirationMs;
+    this.emailEnabled = emailEnabled;
     this.messages = messages;
   }
 
@@ -101,7 +108,7 @@ public class AuthController {
     return Map.of("message", "Email verificado correctamente");
   }
 
-  @Operation(summary = "Reenviar verificacion", description = "Genera un nuevo token de verificacion y lo muestra en consola")
+  @Operation(summary = "Reenviar verificacion", description = "Genera un nuevo token de verificacion y lo envia por email")
   @PostMapping("/resend-verification")
   @PreAuthorize("isAuthenticated()")
   public Map<String, String> resendVerification(Authentication authentication) {
@@ -109,13 +116,17 @@ public class AuthController {
     AppUser user = service.findByEmail(email)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
     String verifyToken = jwtTokenProvider.generateToken(user);
-    System.out.println("=== VERIFY EMAIL TOKEN for " + email + " ===");
-    System.out.println(verifyToken);
-    System.out.println("=== Use POST /api/auth/verify with {\"token\":\"" + verifyToken + "\"} ===");
-    return Map.of("message", "Token de verificacion generado (modo consola)");
+    if (emailEnabled) {
+      emailService.send(email, "Verificacion de cuenta GreenHouse",
+          "Hola " + user.fullName + ",\n\nTu token de verificacion es: " + verifyToken
+              + "\n\nExpira en 24 horas.");
+      return Map.of("message", "Correo de verificacion enviado");
+    }
+    // Fallback for academic/demo environments without SMTP configured
+    return Map.of("message", "Token de verificacion generado (modo desarrollo: email no configurado)", "token", verifyToken);
   }
 
-  @Operation(summary = "Solicitar recuperacion de contrasena", description = "Genera un token de recuperacion y lo muestra en consola")
+  @Operation(summary = "Solicitar recuperacion de contrasena", description = "Genera un token de recuperacion y lo envia por email")
   @PostMapping("/forgot-password")
   public Map<String, String> forgotPassword(@RequestBody Map<String, String> body) {
     String email = body.get("email");
@@ -124,13 +135,17 @@ public class AuthController {
     }
     AppUser user = service.findByEmail(email).orElse(null);
     if (user == null) {
-      return Map.of("message", "Si el correo existe, se ha enviado un enlace de recuperacion (modo consola)");
+      return Map.of("message", "Si el correo existe, se ha enviado un enlace de recuperacion");
     }
     String resetToken = jwtTokenProvider.generateToken(user);
-    System.out.println("=== RESET PASSWORD TOKEN for " + email + " ===");
-    System.out.println(resetToken);
-    System.out.println("=== USE POST /api/auth/reset-password with this token ===");
-    return Map.of("message", "Si el correo existe, se ha enviado un enlace de recuperacion (modo consola)");
+    if (emailEnabled) {
+      emailService.send(email, "Recuperacion de contrasena GreenHouse",
+          "Hola " + user.fullName + ",\n\nTu token de recuperacion es: " + resetToken
+              + "\n\nExpira en 24 horas.");
+      return Map.of("message", "Correo de recuperacion enviado");
+    }
+    // Fallback for academic/demo environments without SMTP configured
+    return Map.of("message", "Token de recuperacion generado (modo desarrollo: email no configurado)", "token", resetToken);
   }
 
   @Operation(summary = "Restablecer contrasena", description = "Usa el token de recuperacion para cambiar la contrasena")

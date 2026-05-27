@@ -10,4 +10,5 @@ public record SensorRequest(
     @NotNull SensorType type,
     @NotBlank String unit,
     BigDecimal minThreshold,
-    BigDecimal maxThreshold) {}
+    BigDecimal maxThreshold,
+    @NotNull Long greenhouseId) {}

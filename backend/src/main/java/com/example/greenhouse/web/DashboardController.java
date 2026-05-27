@@ -17,7 +17,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.transaction.annotation.Transactional;
 
 @Tag(name = "Dashboard", description = "Resumen general del sistema de invernaderos")
 @RestController
@@ -49,22 +48,20 @@ public class DashboardController {
   }
 
   @GetMapping
-  @Transactional(readOnly = true)
   @PreAuthorize("isAuthenticated()")
   @Operation(summary = "Resumen del dashboard", description = "Devuelve metricas globales: conteos, ultima lectura y estado general")
   @ApiResponse(responseCode = "200", description = "Datos del dashboard")
   public DashboardResponse summary(Locale locale) {
-    long openAlerts = alerts.findByResolvedFalseOrderByCreatedAtDesc().size();
-    ReadingResponse last = readings.findAll().stream()
-        .max(java.util.Comparator.comparing(reading -> reading.recordedAt))
+    long openAlerts = alerts.countByResolvedFalse();
+    ReadingResponse last = readings.findFirstByOrderByRecordedAtDesc()
         .map(ReadingResponse::from)
         .orElse(null);
     return new DashboardResponse(
         greenhouses.count(),
-        greenhouses.findAll().stream().filter(greenhouse -> greenhouse.active).count(),
+        greenhouses.countByActiveTrue(),
         zones.count(),
         sensors.count(),
-        actuators.findAll().stream().filter(actuator -> actuator.enabled).count(),
+        actuators.countByEnabledTrue(),
         openAlerts,
         last,
         openAlerts > 0
