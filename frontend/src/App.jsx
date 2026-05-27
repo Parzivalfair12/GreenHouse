@@ -3,6 +3,7 @@ import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Activity, Bell, BookOpen, CircleHelp, Cpu, Database, LayoutDashboard, ListChecks, Map as MapIcon, Moon, Radio, Share2, Sun, Users, Warehouse } from 'lucide-react';
 import { ToastContainer, showToast } from './components/Toast.jsx';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
+import { AppHeader, SidebarBrand } from './components/AppHeader.jsx';
 import { ERDViewer } from './pages/ERD/ERDViewer.jsx';
 
 import {
@@ -53,6 +54,7 @@ import {
   getStoredSession,
 } from './api.js';
 import { AlertsSection } from './components/AlertsSection.jsx';
+import { DashboardSection } from './components/DashboardSection.jsx';
 import { IaSection } from './components/IaSection.jsx';
 import { LogsSection } from './components/LogsSection.jsx';
 import { TaigaSection } from './components/TaigaSection.jsx';

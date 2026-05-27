@@ -11,6 +11,8 @@
     "test": "vitest run",
     "test:selenium": "node test/selenium/dashboard.test.js",
     "test:selenium:erd": "node test/selenium/erd.test.js",
+    "test:selenium:iot": "node test/selenium/iot-flow.test.js",
+    "test:selenium:greenhouse": "node test/selenium/greenhouse.test.js",
     "test:erd": "vitest run src/pages/ERD/__tests__/"
   },
   "dependencies": {

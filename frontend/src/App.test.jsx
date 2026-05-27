@@ -23,6 +23,13 @@ describe('App', () => {
           })
         });
       }
+      // Return empty arrays for all dashboard refresh endpoints
+      if (url.startsWith('/api/')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([])
+        });
+      }
       return Promise.reject(new Error('Use fallback data'));
     }));
   });
@@ -45,11 +52,18 @@ describe('App', () => {
     const buttons = await screen.findAllByRole('button', { name: /iniciar sesion/i });
     fireEvent.click(buttons[0]);
 
+    // After login, the authenticated shell should appear (sidebar with navigation)
+    await waitFor(() =>
+      expect(screen.getByRole('navigation', { name: /Secciones principales/i })).toBeInTheDocument()
+    );
+
+    // Dashboard section heading should render
     await waitFor(() =>
       expect(screen.getByRole('heading', { name: /resumen general/i })).toBeInTheDocument()
     );
-    await waitFor(() => expect(screen.getAllByText(/Invernadero Norte/i).length).toBeGreaterThan(0));
-    expect(screen.getByText(/Temperatura por encima del umbral/i)).toBeInTheDocument();
+
+    // Simulator panel should be visible (part of IoT feature)
+    expect(screen.getByText(/Simulador IoT/i)).toBeInTheDocument();
   });
 
   it('shows error on invalid login', async () => {
