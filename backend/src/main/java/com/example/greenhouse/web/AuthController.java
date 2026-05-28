@@ -20,12 +20,14 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -63,18 +65,21 @@ public class AuthController {
   private final long expirationMs;
   private final MessageSource messages;
   private final boolean emailEnabled;
+  private final ClientRegistrationRepository clientRegistrationRepository;
 
   public AuthController(AuthService service, JwtTokenProvider jwtTokenProvider,
       EmailService emailService,
       @Value("${app.jwt-expiration-ms}") long expirationMs,
       @Value("${greenhouse.email.enabled:false}") boolean emailEnabled,
-      MessageSource messages) {
+      MessageSource messages,
+      @Autowired(required = false) ClientRegistrationRepository clientRegistrationRepository) {
     this.service = service;
     this.jwtTokenProvider = jwtTokenProvider;
     this.emailService = emailService;
     this.expirationMs = expirationMs;
     this.emailEnabled = emailEnabled;
     this.messages = messages;
+    this.clientRegistrationRepository = clientRegistrationRepository;
   }
 
   /**
@@ -91,6 +96,21 @@ public class AuthController {
    * @return respuesta con token JWT, email, roles y expiración
    * @since 2.1.0
    */
+  /**
+   * Devuelve la configuracion de autenticacion disponible en el backend.
+   *
+   * Permite al frontend detectar dinamicamente si OAuth2 Google esta
+   * configurado, evitando depender de variables de entorno en build time.
+   */
+  @Operation(summary = "Configuracion de auth", description = "Devuelve si OAuth2 esta disponible")
+  @ApiResponse(responseCode = "200", description = "Configuracion obtenida",
+      content = @Content(mediaType = "application/json",
+          examples = @ExampleObject(value = "{\"oauthEnabled\":true}")))
+  @GetMapping("/config")
+  public Map<String, Boolean> authConfig() {
+    return Map.of("oauthEnabled", clientRegistrationRepository != null);
+  }
+
   @Operation(summary = "Iniciar sesion", description = "Autentica con email y password, devuelve JWT")
   @ApiResponses({
       @ApiResponse(responseCode = "200", description = "Login exitoso, token JWT generado",

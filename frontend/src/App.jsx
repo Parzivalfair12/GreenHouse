@@ -568,6 +568,15 @@ export function App() {
    * Auth gate: if no session is present, render only the login screen.
    * All authenticated routes and data fetching are short-circuited.
    */
+  const [oauthEnabled, setOAuthEnabled] = useState(false);
+
+  useEffect(() => {
+    fetch(getApiUrl('/api/auth/config'))
+      .then((r) => (r.ok ? r.json() : { oauthEnabled: false }))
+      .then((data) => setOAuthEnabled(data.oauthEnabled))
+      .catch(() => setOAuthEnabled(false));
+  }, []);
+
   if (!session) {
     return (
       <div className={`theme-${theme}`}>
@@ -580,6 +589,7 @@ export function App() {
           onResendVerification={handleResendVerification}
           error={loginError}
           unverified={unverifiedBanner}
+          oauthEnabled={oauthEnabled}
         />
       </div>
     );

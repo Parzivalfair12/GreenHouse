@@ -2,6 +2,7 @@ package com.example.greenhouse.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -9,14 +10,16 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 /**
- * Servicio de correo transaccional que envía mensajes HTML con plantillas
- * para verificación de cuenta y recuperación de contraseña, con fallback
+ * Servicio de correo transaccional que envia mensajes HTML con plantillas
+ * para verificacion de cuenta y recuperacion de contrasena, con fallback
  * a texto plano.
  *
  * Reglas de negocio:
  * <ul>
  *   <li>Usa Spring Mail {@link JavaMailSender} para entrega text-plano y
  *       MIME/HTML.</li>
+ *   <li>Si JavaMailSender no esta disponible (SMTP no configurado), el
+ *       servicio opera en modo degradado: loguea warning y no envia correos.</li>
  *   <li>Fallos en HTML derivan silenciosamente a texto plano mediante
  *       {@code stripHtml()} — asegurando entrega incluso si el servidor
  *       SMTP rechaza contenido MIME.</li>
@@ -25,14 +28,14 @@ import org.springframework.stereotype.Service;
  * </ul>
  *
  * @author GreenHouse Team
- * @version 2.1.0
+ * @version 2.2.0
  * @since 2.1.0
  */
 @Service
 public class EmailService {
   private static final Logger log = LoggerFactory.getLogger(EmailService.class);
 
-  private final JavaMailSender mailSender;
+  private final ObjectProvider<JavaMailSender> mailSenderProvider;
 
   @Value("${spring.mail.username:noreply@greenhouse.local}")
   private String fromAddress;
@@ -40,8 +43,16 @@ public class EmailService {
   @Value("${app.frontend-url:http://localhost:5173}")
   private String frontendUrl;
 
-  public EmailService(JavaMailSender mailSender) {
-    this.mailSender = mailSender;
+  public EmailService(ObjectProvider<JavaMailSender> mailSenderProvider) {
+    this.mailSenderProvider = mailSenderProvider;
+  }
+
+  private JavaMailSender mailSender() {
+    return mailSenderProvider.getIfAvailable();
+  }
+
+  private boolean isMailAvailable() {
+    return mailSender() != null;
   }
 
   /**
@@ -53,12 +64,16 @@ public class EmailService {
    * @since 2.1.0
    */
   public void send(String to, String subject, String body) {
+    if (!isMailAvailable()) {
+      log.warn("Mail disabled — running without SMTP. Could not send email to: {} subject: {}", to, subject);
+      return;
+    }
     SimpleMailMessage message = new SimpleMailMessage();
     message.setFrom(fromAddress);
     message.setTo(to);
     message.setSubject(subject);
     message.setText(body);
-    mailSender.send(message);
+    mailSender().send(message);
     log.info("Sent plain text email to: {} subject: {}", to, subject);
   }
 
@@ -75,14 +90,18 @@ public class EmailService {
    * @since 2.1.0
    */
   public void sendHtml(String to, String subject, String htmlBody) {
+    if (!isMailAvailable()) {
+      log.warn("Mail disabled — running without SMTP. Could not send HTML email to: {} subject: {}", to, subject);
+      return;
+    }
     try {
-      var mimeMessage = mailSender.createMimeMessage();
+      var mimeMessage = mailSender().createMimeMessage();
       var helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
       helper.setFrom(fromAddress);
       helper.setTo(to);
       helper.setSubject(subject);
       helper.setText(htmlBody, true);
-      mailSender.send(mimeMessage);
+      mailSender().send(mimeMessage);
       log.info("Sent HTML email to: {} subject: {}", to, subject);
     } catch (Exception e) {
       log.error("Failed to send HTML email to: {} subject: {}", to, subject, e);

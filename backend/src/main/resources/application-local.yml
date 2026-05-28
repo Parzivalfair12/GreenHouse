@@ -1,0 +1,57 @@
+# =============================================================================
+# GreenHouse — Perfil LOCAL (recomendado para sustentación)
+# Requiere DB_URL, DB_USERNAME, DB_PASSWORD en variables de entorno o .env
+# Uso: SPRING_PROFILES_ACTIVE=local .\mvnw.cmd spring-boot:run
+# =============================================================================
+
+spring:
+  datasource:
+    hikari:
+      auto-commit: false
+      connection-timeout: 15000
+      max-lifetime: 600000
+      initialization-fail-timeout: 30000
+      validation-timeout: 5000
+      pool-name: LocalPool
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        connection:
+          provider_disables_autocommit: true
+    open-in-view: false
+  output:
+    ansi:
+      enabled: always
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration
+
+server:
+  tomcat:
+    max-connections: 50
+    threads:
+      max: 20
+      min-spare: 5
+
+springdoc:
+  swagger-ui:
+    enabled: true
+
+app:
+  oauth2:
+    redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:8080/login/oauth2/code/google}
+
+greenhouse:
+  seeder:
+    enabled: ${SEEDER_ENABLED:true}
+
+logging:
+  level:
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.springframework.security: WARN
+    org.springframework.web: WARN
+    com.example.greenhouse: INFO

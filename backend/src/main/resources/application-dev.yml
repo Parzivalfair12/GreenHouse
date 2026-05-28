@@ -1,0 +1,43 @@
+# =============================================================================
+# GreenHouse — Perfil DESARROLLO LOCAL (PostgreSQL local, sin Neon)
+# Para usar este perfil: export DB_URL=jdbc:postgresql://localhost:5432/... && SPRING_PROFILES_ACTIVE=dev
+# =============================================================================
+
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    show-sql: ${JPA_SHOW_SQL:true}
+    hibernate:
+      ddl-auto: update
+  output:
+    ansi:
+      enabled: always
+
+server:
+  tomcat:
+    max-connections: 20
+    threads:
+      max: 10
+
+springdoc:
+  swagger-ui:
+    enabled: true
+
+app:
+  oauth2:
+    redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:8080/login/oauth2/code/google}
+
+greenhouse:
+  seeder:
+    enabled: ${SEEDER_ENABLED:true}
+
+logging:
+  level:
+    org.hibernate.SQL: ${LOG_SQL:DEBUG}
+    org.hibernate.type.descriptor.sql.BasicBinder: ${LOG_BIND:TRACE}
+    org.springframework.security: DEBUG
+    org.springframework.web: DEBUG
+    com.example.greenhouse: DEBUG

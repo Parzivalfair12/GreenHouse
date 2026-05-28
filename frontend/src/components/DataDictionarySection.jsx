@@ -160,7 +160,7 @@ function FieldRow({ field }) {
  * Manejo de estado: open/close local con useState, defaultOpen para la primera entidad.
  * Renderiza cabecera (nombre, tabla, conteos), tabla de campos, y relaciones FK.
  * Las relaciones se muestran como tags con nombres de entidades relacionadas. */
-function EntityCard({ entity, defaultOpen }) {
+function EntityCard({ entity, defaultOpen, t }) {
   const [open, setOpen] = useState(defaultOpen);
 
   return (
@@ -229,7 +229,7 @@ export function DataDictionarySection({ t }) {
         <span><span className="dicValidationBadge">V</span> {t.validationLabel}</span>
       </div>
       {/* Entidades del modelo: primera abierta por defecto (defaultOpen={i === 0}) */}
-      {ENTITIES.map((e, i) => <EntityCard key={e.name} entity={e} defaultOpen={i === 0} />)}
+      {ENTITIES.map((e, i) => <EntityCard key={e.name} entity={e} defaultOpen={i === 0} t={t} />)}
     </Section>
   );
 }

@@ -1,18 +1,48 @@
+# =============================================================================
+# GreenHouse — Configuracion base
+# Requiere DB_URL, DB_USERNAME, DB_PASSWORD como variables de entorno.
+# Sin ellas, el backend no puede conectar a la base de datos.
+# Usa SPRING_PROFILES_ACTIVE=local para desarrollo con Neon.
+# =============================================================================
+
 spring:
   application:
     name: greenhouse-api
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/greenhouse}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${HIKARI_MAX_POOL:10}
+      minimum-idle: ${HIKARI_MIN_IDLE:2}
+      idle-timeout: 300000
+      connection-timeout: 10000
+      max-lifetime: 600000
+      leak-detection-threshold: 60000
+      connection-test-query: SELECT 1
+      pool-name: GreenhousePool
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: validate
-    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          lob:
+            non_contextual_creation: true
   flyway:
     enabled: true
     baseline-on-migrate: true
     baseline-version: 0
+    locations: classpath:db/migration
+    out-of-order: false
+    validate-on-migrate: true
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
   mail:
     host: ${SMTP_HOST:localhost}
     port: ${SMTP_PORT:1025}
@@ -24,12 +54,24 @@ spring:
           auth: ${SMTP_AUTH:false}
           starttls:
             enable: ${SMTP_TLS:false}
+  output:
+    ansi:
+      enabled: ${SPRING_ANSI_ENABLED:always}
+
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
 
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
+  api-url: ${API_URL:http://localhost:8080}
   ia-url: ${IA_URL:http://localhost:5000}
-  jwt-secret: ${JWT_SECRET:dev-only-change-me-in-production-0123456789abcdef0123456789abcdef}
-  jwt-expiration-ms: 86400000
+  jwt-secret: ${JWT_SECRET:cambiar-en-produccion-minimo-64-caracteres}
+  jwt-expiration-ms: ${JWT_EXPIRATION_MS:86400000}
   taiga:
     api-url: ${TAIGA_API_URL:https://api.taiga.io/api/v1}
     token: ${TAIGA_TOKEN:}
@@ -38,7 +80,7 @@ app:
     read-timeout-ms: 10000
   oauth2:
     enabled: ${OAUTH2_ENABLED:false}
-    redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:8080/login/oauth2/code/google}
+    redirect-uri: ${OAUTH2_REDIRECT_URI:}
     admin-emails: ${OAUTH2_ADMIN_EMAILS:}
   github:
     token: ${GITHUB_TOKEN:}
@@ -47,7 +89,8 @@ app:
 
 greenhouse:
   seeder:
-    admin-password: ${ADMIN_PASSWORD:admin_dev_change_me}
+    admin-password: ${ADMIN_PASSWORD:admin1234}
+    enabled: ${SEEDER_ENABLED:true}
   email:
     enabled: ${EMAIL_ENABLED:false}
 
@@ -55,11 +98,34 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,flyway,env
+      base-path: /actuator
   endpoint:
     health:
       show-details: when_authorized
+      probes:
+        enabled: true
+    flyway:
+      enabled: true
+  health:
+    readinessstate:
+      enabled: true
+    livenessstate:
+      enabled: true
 
-springdoc:
-  swagger-ui:
-    path: /swagger-ui.html
+info:
+  app:
+    name: ${spring.application.name}
+    version: @project.version@
+    description: @project.description@
+
+logging:
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
+    org.hibernate.SQL: ${LOG_SQL:WARN}
+    org.hibernate.type.descriptor.sql.BasicBinder: ${LOG_BIND:WARN}
+    com.zaxxer.hikari: INFO
+    org.flywaydb: INFO
+    com.example.greenhouse: ${LOG_GREENHOUSE:INFO}
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{correlationId}] - %msg%n"

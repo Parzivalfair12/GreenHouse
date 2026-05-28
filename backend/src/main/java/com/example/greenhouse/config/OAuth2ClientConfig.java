@@ -3,7 +3,7 @@ package com.example.greenhouse.config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
@@ -15,11 +15,13 @@ import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames;
 
 /**
  * Conditional OAuth2 client configuration.
- * Only loaded when app.oauth2.enabled=true.
- * Prevents startup crashes when GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET are not set.
+ * Only loaded when GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are non-blank.
+ * Prevents startup crashes when OAuth2 credentials are not set.
  */
 @Configuration
-@ConditionalOnProperty(name = "app.oauth2.enabled", havingValue = "true")
+@ConditionalOnExpression(
+    "!'${GOOGLE_CLIENT_ID:}'.isBlank() && !'${GOOGLE_CLIENT_SECRET:}'.isBlank()"
+)
 public class OAuth2ClientConfig {
   private static final Logger log = LoggerFactory.getLogger(OAuth2ClientConfig.class);
 
@@ -27,13 +29,19 @@ public class OAuth2ClientConfig {
   public ClientRegistrationRepository clientRegistrationRepository(
       @Value("${GOOGLE_CLIENT_ID}") String clientId,
       @Value("${GOOGLE_CLIENT_SECRET}") String clientSecret,
-      @Value("${app.oauth2.redirect-uri:}") String redirectUriOverride) {
+      @Value("${app.oauth2.redirect-uri:}") String redirectUriOverride,
+      @Value("${app.api-url:http://localhost:8080}") String backendUrl) {
 
-    // Hardcode exact redirect URI to eliminate mismatch with Google Cloud Console
-    String redirectUri = "http://localhost:8080/login/oauth2/code/google";
+    String redirectUri = redirectUriOverride != null && !redirectUriOverride.isBlank()
+        ? redirectUriOverride
+        : backendUrl.replaceAll("/+$", "") + "/login/oauth2/code/google";
 
-    log.info("OAuth2 redirect URI hardcoded: {}", redirectUri);
-    log.info("OAuth2 client ID starts with: {}...", clientId.length() > 8 ? clientId.substring(0, 8) : clientId);
+    log.info("========================================");
+    log.info("[OAUTH2] ClientRegistrationRepository CREATED");
+    log.info("[OAUTH2] Provider: google");
+    log.info("[OAUTH2] Redirect URI: {}", redirectUri);
+    log.info("[OAUTH2] Client ID starts with: {}...", clientId.length() > 8 ? clientId.substring(0, 8) : clientId);
+    log.info("========================================");
 
     ClientRegistration google = ClientRegistration.withRegistrationId("google")
         .clientId(clientId)

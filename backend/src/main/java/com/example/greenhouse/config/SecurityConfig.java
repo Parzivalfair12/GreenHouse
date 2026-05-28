@@ -92,6 +92,7 @@ public class SecurityConfig {
         .authorizeHttpRequests(auth -> auth
             .requestMatchers("/api/auth/login").permitAll()
             .requestMatchers("/api/auth/register").permitAll()
+            .requestMatchers("/api/auth/config").permitAll()
             .requestMatchers("/api/auth/forgot-password").permitAll()
             .requestMatchers("/api/auth/reset-password").permitAll()
             .requestMatchers("/api/auth/verify-email").permitAll()

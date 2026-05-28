@@ -9,7 +9,7 @@ import { Globe2, Leaf, LockKeyhole, LogIn, Mail, ArrowLeft, Send } from 'lucide-
  *   La llamada a /api/auth/forgot-password es directa con fetch, no pasa por el manejador de API central.
  * Placeholders: emailPlaceholder, passwordPlaceholder desde i18n.
  * Selector de idioma: setLanguage actualiza el locale global. */
-export function LoginScreen({ language, setLanguage, t, onLogin, onGoogleLogin, onResendVerification, error, unverified }) {
+export function LoginScreen({ language, setLanguage, t, onLogin, onGoogleLogin, onResendVerification, error, unverified, oauthEnabled = false }) {
   /* Email pre-poblado con credencial de demo para facilitar acceso de prueba */
   const [email, setEmail] = useState('admin@greenhouse.local');
   const [password, setPassword] = useState('');
@@ -131,11 +131,13 @@ export function LoginScreen({ language, setLanguage, t, onLogin, onGoogleLogin, 
             <LogIn size={18} />
             {t.signIn}
           </button>
-          {/* Botón de OAuth Google */}
-          <button className="googleButton" type="button" onClick={onGoogleLogin}>
-            <Globe2 size={18} />
-            {t.signInGoogle}
-          </button>
+          {/* Botón de OAuth Google (oculto si no está configurado en el backend) */}
+          {oauthEnabled && (
+            <button className="googleButton" type="button" onClick={onGoogleLogin}>
+              <Globe2 size={18} />
+              {t.signInGoogle}
+            </button>
+          )}
           {/* Enlace para cambiar a forgot-password */}
           <p style={{ textAlign: 'center', marginTop: '8px' }}>
             <button type="button" onClick={() => setMode('forgot')} style={{ background: 'transparent', border: 'none', color: '#94a3b8', textDecoration: 'underline', cursor: 'pointer', fontSize: '13px' }}>
