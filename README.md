@@ -183,33 +183,76 @@ API requests incluyen Accept-Language: es|en
 Spring Boot resuelve locale → MessageSource → response traducida
 ```
 
-### Como agregar un idioma
-
-1. Crear `messages_{lang}.properties` en `backend/src/main/resources/`.
-2. Agregar el objeto `{lang}` en `frontend/src/i18n.js` duplicando la estructura de `es` o `en`.
-3. Agregar la opcion `<option value="{lang}">{lang.toUpperCase()}</option>` en `LoginScreen` y `AppHeader`.
-
-### Como agregar una key
-
-**Frontend:** Agregar la key en ambos idiomas del `dictionary`:
-```js
-es: { myNewKey: 'Nuevo texto' },
-en: { myNewKey: 'New text' }
-```
-
-**Backend:** Agregar la key en ambos archivos `.properties`:
-```properties
-# messages.properties
-my.new.key=New text
-
-# messages_es.properties
-my.new.key=Nuevo texto
-```
-
 ### Tests i18n
 
 - **Frontend**: `frontend/src/__tests__/i18n.test.jsx` valida persistencia, cambio dinamico y parity de keys.
 - **Backend**: `backend/src/test/java/.../web/I18nIntegrationTest.java` valida `Accept-Language` es/en y traduccion de errores.
+
+## Flujo IA
+
+```
+Frontend (IaSection.jsx)
+  → Obtiene lecturas históricas de sensores
+  → POST /api/ia/predict
+    → IaService (proxy HTTP)
+      → Flask microservicio (scikit-learn)
+        → Predicción: temperatura, humedad, tendencia
+  → POST /api/ia/recommend
+    → Recomendación agronómica basada en riesgo
+
+Predicción local alternativa (AiPredictionService):
+  → Media móvil ponderada + proyección lineal
+  → Evaluación de riesgo (HIGH/MEDIUM/LOW)
+  → Sin dependencia externa
+```
+
+## Simulador IoT
+
+```
+SimulationService.tick() cada 5s (vía @Scheduled)
+  → SensorState.nextValue() genera valor gradual
+    → 5% de probabilidad de anomalía
+    → Tendencia cambia cada 5 ticks
+    → Soft bounce en límites
+  → Lectura persistida en PostgreSQL
+  → RuleEngineService.evaluateReading()
+    → Verificación de umbrales → alertas
+    → Evaluación de reglas LOW_HUMIDITY_IRRIGATION
+      → Activación/desactivación de actuadores
+      → Creación de eventos de riego
+```
+
+## Estructura del Proyecto
+
+```
+GreenHouse/
+├── backend/           # Spring Boot 3 REST API
+│   ├── src/main/java  # Código fuente (10 services, 6 controllers, 19 entidades)
+│   ├── src/main/resources/  # Configuración, mensajes i18n, Flyway
+│   └── src/test/java  # Tests JUnit (48 tests)
+├── frontend/          # React + Vite SPA
+│   ├── src/components/ # 20 componentes React
+│   ├── src/pages/ERD/ # Visor ERD con React Flow
+│   └── src/config/    # Modelo JSON y parser
+├── ia/                # Flask IA microservicio
+├── iot/               # Simulador Python IoT
+├── docs/              # Documentación del proyecto
+├── .github/workflows/ # CI/CD (4 jobs)
+└── docker-compose.yml # Orquestación Docker
+```
+
+## Documentación
+
+| Archivo | Contenido |
+|---------|-----------|
+| `docs/architecture.md` | Arquitectura completa del sistema |
+| `docs/backend.md` | Documentación del backend |
+| `docs/frontend.md` | Documentación del frontend |
+| `docs/api.md` | Endpoints REST completos |
+| `docs/testing.md` | Guía de pruebas |
+| `docs/security.md` | Seguridad: JWT, OAuth, roles |
+| `docs/troubleshooting.md` | Solución de problemas comunes |
+| `CHANGELOG.md` | Registro de cambios
 
 ## Pruebas
 

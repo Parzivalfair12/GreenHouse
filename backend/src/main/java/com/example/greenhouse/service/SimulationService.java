@@ -19,9 +19,25 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * IoT simulation engine that generates intelligent sensor readings every 5 seconds.
- * Values evolve gradually (up, down, stabilize) rather than pure random jumps.
- * Anomalous readings are generated occasionally to trigger alerts and rules.
+ * Motor de simulación IoT que genera lecturas inteligentes de sensores cada 5 segundos.
+ * Los valores evolucionan gradualmente (suben, bajan, se estabilizan) en lugar de
+ * saltos aleatorios puros. Ocasionalmente se generan lecturas anómalas para
+ * disparar alertas y reglas de automatización.
+ *
+ * Reglas de negocio:
+ * <ul>
+ *   <li>Cada sensor mantiene un estado interno de simulación con tendencia y
+ *       ruido gaussiano para generar valores realistas.</li>
+ *   <li>5% de las lecturas son anómalas (fuera de rango) para probar el
+ *       motor de reglas y alertas.</li>
+ *   <li>Las tendencias cambian gradualmente cada 5 ticks para simular
+ *       ciclos ambientales naturales.</li>
+ *   <li>Límites suaves (soft bounce) evitan valores infinitos.</li>
+ * </ul>
+ *
+ * @author GreenHouse Team
+ * @version 2.1.0
+ * @since 2.1.0
  */
 @Service
 public class SimulationService {
@@ -45,15 +61,32 @@ public class SimulationService {
     this.ruleEngine = ruleEngine;
   }
 
+  /**
+   * Indica si el motor de simulación se encuentra actualmente en ejecución.
+   *
+   * @return true si el motor está activo generando lecturas
+   * @since 2.1.0
+   */
   public boolean isRunning() {
     return running;
   }
 
+  /**
+   * Inicia el motor de simulación. Las lecturas comienzan a generarse en el
+   * próximo ciclo programado (@link Scheduled}.
+   *
+   * @since 2.1.0
+   */
   public void start() {
     running = true;
     log.info("IoT Simulation engine STARTED (interval={}ms)", INTERVAL_MS);
   }
 
+  /**
+   * Detiene el motor de simulación de forma segura.
+   *
+   * @since 2.1.0
+   */
   public void stop() {
     running = false;
     log.info("IoT Simulation engine STOPPED");

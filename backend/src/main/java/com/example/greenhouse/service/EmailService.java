@@ -8,7 +8,26 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
-/** Service for sending transactional emails with HTML templates. */
+/**
+ * Servicio de correo transaccional que envía mensajes HTML con plantillas
+ * para verificación de cuenta y recuperación de contraseña, con fallback
+ * a texto plano.
+ *
+ * Reglas de negocio:
+ * <ul>
+ *   <li>Usa Spring Mail {@link JavaMailSender} para entrega text-plano y
+ *       MIME/HTML.</li>
+ *   <li>Fallos en HTML derivan silenciosamente a texto plano mediante
+ *       {@code stripHtml()} — asegurando entrega incluso si el servidor
+ *       SMTP rechaza contenido MIME.</li>
+ *   <li>Todo HTML es XSS-safe: el texto del usuario se escapa mediante
+ *       {@code escapeHtml()}.</li>
+ * </ul>
+ *
+ * @author GreenHouse Team
+ * @version 2.1.0
+ * @since 2.1.0
+ */
 @Service
 public class EmailService {
   private static final Logger log = LoggerFactory.getLogger(EmailService.class);
@@ -25,6 +44,14 @@ public class EmailService {
     this.mailSender = mailSender;
   }
 
+  /**
+   * Sends a plain-text email with basic subject and body.
+   *
+   * @param to      recipient email
+   * @param subject email subject line
+   * @param body    plain-text body content
+   * @since 2.1.0
+   */
   public void send(String to, String subject, String body) {
     SimpleMailMessage message = new SimpleMailMessage();
     message.setFrom(fromAddress);
@@ -35,6 +62,18 @@ public class EmailService {
     log.info("Sent plain text email to: {} subject: {}", to, subject);
   }
 
+  /**
+   * Sends an HTML email via MIME helper with UTF-8 encoding.
+   *
+   * If the MIME send fails for any reason, the method degrades to plain-text
+   * delivery by stripping HTML tags — ensuring the user still receives the
+   * message.
+   *
+   * @param to       recipient email
+   * @param subject  email subject line
+   * @param htmlBody full HTML document string
+   * @since 2.1.0
+   */
   public void sendHtml(String to, String subject, String htmlBody) {
     try {
       var mimeMessage = mailSender.createMimeMessage();
@@ -52,6 +91,18 @@ public class EmailService {
     }
   }
 
+  /**
+   * Sends the account-verification email with a tokenized link.
+   *
+   * The link points to {@code {frontendUrl}/verify-email?token=...} and
+   * expires after 24 hours (enforced server-side in
+   * {@link AuthService#verifyEmailWithToken}).
+   *
+   * @param to       recipient email
+   * @param fullName user's display name for personalisation
+   * @param token    URL-safe verification token
+   * @since 2.1.0
+   */
   public void sendVerificationEmail(String to, String fullName, String token) {
     String verifyUrl = frontendUrl.replaceAll("/+$", "") + "/verify-email?token=" + token;
     String html = """
@@ -76,6 +127,14 @@ public class EmailService {
     sendHtml(to, "Verifica tu cuenta GreenHouse", html);
   }
 
+  /**
+   * Sends the password-reset email with a tokenized link valid for 1 hour.
+   *
+   * @param to       recipient email
+   * @param fullName user's display name
+   * @param token    URL-safe reset token
+   * @since 2.1.0
+   */
   public void sendPasswordResetEmail(String to, String fullName, String token) {
     String resetUrl = frontendUrl.replaceAll("/+$", "") + "/reset-password?token=" + token;
     String html = """

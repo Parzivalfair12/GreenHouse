@@ -1,8 +1,14 @@
 import { Section } from './shared.jsx';
 
+/* Listado de alertas abiertas del sistema.
+ * Flujo de datos: 'alerts' llega desde el backend filtrado por no resueltas.
+ * Resolución: onResolve(alert.id) dispara una llamada PATCH al backend para marcar como resuelta.
+ * Manejo de estados vacíos: si alerts.length === 0 muestra t.noAlerts.
+ * i18n: textos de propósito, severidad, código de sensor y botón resolver. */
 export function AlertsSection({ alerts, onResolve, t }) {
   return (
     <Section title={t.alerts}>
+      {/* Banda explicativa del propósito de las alertas en el sistema */}
       <div className="explainBand">
         <strong>{t.alertsPurposeTitle}</strong>
         <p>{t.alertsPurposeText}</p>

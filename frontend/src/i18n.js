@@ -1,3 +1,24 @@
+/**
+ * Internationalization layer for Greenhouse Manager.
+ *
+ * Dictionary structure:
+ * - A single flat object keyed by locale code ('es', 'en').
+ * - Each locale is a flat key→value map (no nesting) for simplicity and
+ *   compatibility with the translate() helper, which performs a direct
+ *   property lookup. Dot-notation support is reserved for future migration.
+ * - Keys shared across ALL UI components (navbar, forms, toasts, error
+ *   messages, manual, dashboard, etc.) are co-located here so that adding
+ *   a new language only requires mirroring the key set.
+ *
+ * Persistence:
+ * - Language preference is stored in localStorage under 'greenhouse-language'.
+ * - Defaults to Spanish ('es') when no preference is saved.
+ *
+ * Server integration:
+ * - getSavedLanguage() is also consumed by api.js to set the Accept-Language
+ *   header on every HTTP request, enabling server-side localization of error
+ *   messages and validation feedback.
+ */
 export const dictionary = {
   es: {
     title: 'Panel del invernadero',
@@ -483,6 +504,7 @@ export const dictionary = {
   }
 };
 
+/** localStorage key for persisting the user's language preference. */
 const LANG_KEY = 'greenhouse-language';
 
 export function getSavedLanguage() {
@@ -505,6 +527,19 @@ export function saveLanguage(lang) {
 // New keys can use dot notation (e.g. 'auth.login') in the flat dictionary.
 // The translate() helper resolves dot-notation paths for nested access.
 
+/**
+ * Resolves a translation key from the dictionary.
+ *
+ * Currently uses flat key lookup (dict[path]) with a fallback chain:
+ * requested language → Spanish (es) → raw key.
+ * The dictionary is intentionally flat; dot-notation support is planned
+ * for gradual migration to nested namespaces (e.g. 'auth.login').
+ *
+ * @param {string} language - locale code ('es' | 'en')
+ * @param {string} path - translation key
+ * @param {string} [fallback] - explicit fallback value
+ * @returns {string} translated string or the key itself
+ */
 export function translate(language, path, fallback) {
   const dict = dictionary[language] || dictionary.es;
   return dict[path] ?? fallback ?? path;

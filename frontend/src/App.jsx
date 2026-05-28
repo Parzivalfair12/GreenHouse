@@ -1,3 +1,31 @@
+/**
+ * Root application component – owns all global state and orchestrates auth,
+ * data fetching, polling, and section routing.
+ *
+ * Global state management:
+ * - All entity lists (greenhouses, alerts, users, zones, sensors, readings,
+ *   actuators, rules, logs) live in useState at this level and are passed
+ *   down as props. No context or external store – the component tree is
+ *   shallow enough that prop drilling is manageable.
+ * - The `refresh()` function fetches every entity in a single Promise.allSettled
+ *   batch, so a single call (on login, on mutation, on poll tick) rehydrates
+ *   the entire UI state.
+ *
+ * Auth flow:
+ * - Session is hydrated from localStorage on mount via useStoredSession().
+ * - If no session exists, <LoginScreen /> is rendered (email + Google OAuth).
+ * - On successful email login: credentials → /api/auth/login → saveSession().
+ * - On Google OAuth callback: URL params are inspected; if success,
+ *   /api/auth/me → /api/auth/refresh → saveSession().
+ * - On logout: localStorage cleared, session set to null → LoginScreen shown.
+ *
+ * Polling mechanism:
+ * - While authenticated (session != null) and no API error, a 5-second
+ *   setInterval calls refresh() to keep dashboard data live.
+ * - Polling pauses on API error (shows retry button) and on OAuth callback
+ *   pages to avoid interfering with the redirect flow.
+ */
+
 import { useEffect, useMemo, useState } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Activity, Bell, BookOpen, CircleHelp, Cpu, Database, LayoutDashboard, ListChecks, Map as MapIcon, Moon, Radio, Share2, Sun, Users, Warehouse } from 'lucide-react';
@@ -99,6 +127,10 @@ export function App() {
     localStorage.setItem('greenhouse-theme', theme);
   }, [theme]);
 
+  /**
+   * Centralized entity state – all lists live here so a single refresh() call
+   * can rehydrate every slice of the UI (dashboard, tables, forms, alerts).
+   */
   const [greenhouses, setGreenhouses] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [users, setUsers] = useState([]);
@@ -132,6 +164,16 @@ export function App() {
     saveLanguage(lang);
   }
 
+  /**
+   * Batch-fetches all entities concurrently using Promise.allSettled so that
+   * a single network failure (e.g. 403 on a restricted endpoint) doesn't
+   * block the rest of the UI from updating. Each fulfilled promise updates
+   * its corresponding state slice independently.
+   *
+   * Also auto-selects a default greenhouse: keeps the current selection if
+   * it still exists, otherwise picks the greenhouse with the most recent
+   * sensor reading, falling back to the first active greenhouse.
+   */
   async function refresh() {
     setApiError(null);
     try {
@@ -190,6 +232,13 @@ export function App() {
     }
   }, [session]);
 
+  /**
+   * 5-second polling loop: keeps dashboard totals, alerts, and sensor data
+   * live without WebSocket infrastructure. Pauses when:
+   * - There is no active session (user is on login screen).
+   * - An API error is set (user sees the retry screen instead).
+   * - The URL contains ?oauth=google (mid-OAuth redirect).
+   */
   useEffect(() => {
     if (!session || apiError) return;
     const params = new URLSearchParams(window.location.search);
@@ -200,6 +249,13 @@ export function App() {
     return () => clearInterval(interval);
   }, [session, apiError]);
 
+  /**
+   * Registers cross-cutting auth callbacks with the API layer.
+   * - onUnauthorized: clears session → login screen.
+   * - onUnverified: shows a banner prompting email verification.
+   * These run once on mount; on unmount they are nulled to prevent
+   * stale closures from firing after the component unmounts.
+   */
   useEffect(() => {
     setOnUnauthorized(() => {
       clearStoredSession();
@@ -214,6 +270,17 @@ export function App() {
     };
   }, []);
 
+  /**
+   * Handles the OAuth2 callback from Google.
+   *
+   * The backend redirects the browser to the frontend with query params:
+   * ?oauth=google&status=success  → fetch /api/auth/me for user info,
+   *   then /api/auth/refresh for a JWT, then saveSession().
+   * ?oauth=google&status=error    → surface the error message on the login screen.
+   *
+   * After processing, the query string is stripped from the URL so that
+   * page refreshes don't re-trigger the OAuth flow.
+   */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('oauth') !== 'google') return;
@@ -250,6 +317,11 @@ export function App() {
     }
   }, []);
 
+  /**
+   * Resolves the currently selected greenhouse. Falls back to the first
+   * greenhouse in the list if the selectedId no longer exists (e.g. after
+   * deletion). Used by OperationsSection and the edit form.
+   */
   const selected = greenhouses.find((greenhouse) => greenhouse.id === selectedId) ?? greenhouses[0];
   const totals = useMemo(() => ({
     greenhouses: greenhouses.length,
@@ -296,6 +368,12 @@ export function App() {
     }
   }, [location.pathname, theme]);
 
+  /**
+   * Email/password login handler.
+   * Classifies errors: "verif" → account unverified banner,
+   * "too many requests" → pass through server rate-limit message,
+   * everything else → generic invalid credentials message.
+   */
   async function handleLogin(credentials) {
     try {
       setLoginError('');
@@ -328,6 +406,11 @@ export function App() {
     beginGoogleOAuth();
   }
 
+  /**
+   * Persists the user session to localStorage and React state.
+   * Also shows the unverified banner for email-authenticated users whose
+   * accounts have not been verified (provider === 'email' && !verified).
+   */
   function saveSession(user) {
     localStorage.setItem('greenhouse-session', JSON.stringify(user));
     setSession(user);
@@ -479,6 +562,10 @@ export function App() {
     URL.revokeObjectURL(url);
   }
 
+  /**
+   * Auth gate: if no session is present, render only the login screen.
+   * All authenticated routes and data fetching are short-circuited.
+   */
   if (!session) {
     return (
       <div className={`theme-${theme}`}>
@@ -647,6 +734,11 @@ export function App() {
   );
 }
 
+/**
+ * Hydrates session state from localStorage on mount.
+ * Returns null during an OAuth callback to prevent the session from being
+ * read before the OAuth flow has completed and saved a fresh token.
+ */
 function useStoredSession() {
   return useState(() => {
     const params = new URLSearchParams(window.location.search);
@@ -657,6 +749,10 @@ function useStoredSession() {
   });
 }
 
+/**
+ * Strips OAuth query parameters from the URL without a page reload,
+ * so that browser refresh doesn't re-trigger the OAuth callback.
+ */
 function clearOAuthQuery() {
   window.history.replaceState({}, '', window.location.pathname);
 }
@@ -665,6 +761,11 @@ function greenhouseOptions(greenhouses) {
   return greenhouses.map((greenhouse) => ({ value: greenhouse.id, label: greenhouse.name }));
 }
 
+/**
+ * Picks the best default greenhouse after a data refresh.
+ * Priority: greenhouse with the most recent sensor reading →
+ * first active greenhouse → first greenhouse → null.
+ */
 function pickDefaultGreenhouseId(greenhouses, sensors, readings) {
   const sensorById = new Map(sensors.map((sensor) => [sensor.id, sensor]));
   const latestReading = readings

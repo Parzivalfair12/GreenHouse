@@ -2,11 +2,18 @@ import { AlertTriangle, Bell, FlaskConical, Leaf, Pause, Play, Plus, Power, Radi
 import { Metric, Panel, Section } from './shared.jsx';
 import { IaPreview } from './IaSection.jsx';
 
+/* Componente principal del Dashboard.
+ * Flujo de datos: recibe props agregadas desde el layout padre que consolida
+ * respuestas de múltiples endpoints (totals, dashboard, readings, alerts, sensors, actuators).
+ * i18n: todas las etiquetas llegan via prop 't' (objeto de traducciones).
+ * Simulador: botón de inicio/parada vinculado a callbacks onStartSimulator/onStopSimulator. */
 export function DashboardSection({ totals, selected, alerts, dashboard, readings, sensors, actuators, t, openAlerts, simulatorRunning, onStartSimulator, onStopSimulator }) {
+  /* Cuenta actuadores habilitados para la métrica "actuatorsOn" */
   const activeActuators = actuators?.filter((a) => a.enabled).length ?? 0;
 
   return (
     <Section title={t.overview} subtitle={t.dashboardSubtitle}>
+      {/* Panel de estado del simulador: muestra si está activo y botón de toggle */}
       <div className="simulatorPanel">
         <div className="simulatorStatus">
           <span className={`pulseDot ${simulatorRunning ? 'active' : ''}`} />
@@ -20,6 +27,7 @@ export function DashboardSection({ totals, selected, alerts, dashboard, readings
           {simulatorRunning ? <><Pause size={16} /> {t.stopSimulation}</> : <><Play size={16} /> {t.startSimulation}</>}
         </button>
       </div>
+      {/* Métricas generales: invernaderos, cultivos, sensores, actuadores, alertas, IA */}
       <section className="metrics" aria-label="Metricas">
         <Metric icon={<Leaf />} label={t.greenhouses} value={dashboard?.greenhouses ?? totals.greenhouses} />
         <Metric icon={<Sprout />} label={t.crops} value={totals.crops} />
@@ -38,6 +46,9 @@ export function DashboardSection({ totals, selected, alerts, dashboard, readings
   );
 }
 
+/* Muestra las últimas 6 lecturas ordenadas por fecha descendente.
+ * Lógica de negocio: clona el array para no mutar el original, ordena por recordedAt descendente,
+ * toma 6 y resuelve el nombre del sensor via sensorMap. */
 function LatestReadings({ readings, sensors, t }) {
   if (!readings || readings.length === 0) return null;
   const sensorMap = new Map(sensors.map((s) => [s.id, s]));
@@ -60,6 +71,9 @@ function LatestReadings({ readings, sensors, t }) {
   );
 }
 
+/* Panel de detalle del invernadero seleccionado.
+ * Flujo de datos: 'selected' se establece desde el layout padre al hacer clic en un invernadero.
+ * Si no hay selección, muestra estado vacío con noRecords. */
 function OverviewPanel({ selected, dashboard, t }) {
   if (!selected) {
     return <Panel title={t.selected}><p className="emptyState">{t.noRecords}</p></Panel>;
@@ -90,6 +104,9 @@ function OverviewPanel({ selected, dashboard, t }) {
   );
 }
 
+/* Vista previa de alertas: muestra conteo + primeras 2 alertas.
+ * Botón "alerts" dispara onOpen para navegar a la sección de alertas completa.
+ * Manejo de estado vacío: cuando no hay alertas muestra t.noAlerts. */
 function AlertPreview({ alerts, t, onOpen }) {
   return (
     <Panel title={t.alerts}>
@@ -104,6 +121,11 @@ function AlertPreview({ alerts, t, onOpen }) {
   );
 }
 
+/* Gráfico de lecturas de sensores (temperatura y humedad).
+ * Flujo de datos: filtra readings por los sensores del invernadero seleccionado (o todos si no hay selección).
+ * Ordena lecturas ascendentemente por fecha para la línea del gráfico.
+ * Lógica de negocio: busca el último valor de temperatura/humedad via latestByType o latestByCode (fallback por patrón).
+ * Genera series de datos para renderizar paths SVG con buildLinePath. */
 function SensorChart({ dashboard, selected, readings = [], sensors = [], t }) {
   const selectedSensorIds = new Set(
     sensors
@@ -156,16 +178,21 @@ function SensorChart({ dashboard, selected, readings = [], sensors = [], t }) {
   );
 }
 
+/* Busca la última lectura (at(-1)) que coincida con uno de los tipos dados.
+ * Asume que readings ya viene ordenado ascendentemente por fecha. */
 function latestByType(readings, sensorById, ...types) {
   return readings
     .filter((reading) => types.includes(sensorById.get(reading.sensorId)?.type))
     .at(-1);
 }
 
+/* Fallback: busca la última lectura cuyo sensorCode coincida con un patrón regex.
+ * Útil cuando el sensor no tiene type definido. */
 function latestByCode(readings, pattern) {
   return readings.filter((reading) => pattern.test(reading.sensorCode ?? '')).at(-1);
 }
 
+/* Extrae los últimos 12 valores numéricos de un tipo de sensor para la serie del gráfico. */
 function seriesByType(readings, sensorById, ...types) {
   return readings
     .filter((reading) => types.includes(sensorById.get(reading.sensorId)?.type))
@@ -178,6 +205,8 @@ function formatValue(value) {
   return Number(value).toFixed(1).replace('.0', '');
 }
 
+/* Etiqueta de estado basada en umbrales min/max del sensor.
+ * Lógica de negocio: si el valor está fuera del rango → "Bajo" o "Alerta"; si no → "Normal". */
 function statusLabel(reading, sensorById) {
   if (!reading) return 'Sin datos';
   const sensor = sensorById.get(reading.sensorId);
@@ -187,6 +216,8 @@ function statusLabel(reading, sensorById) {
   return 'Normal';
 }
 
+/* Construye un path SVG 'M... L...' normalizado al viewBox 720x180.
+ * Mapea valores a coordenadas Y invertidas (top = min, bottom = max). */
 function buildLinePath(values) {
   const width = 720;
   const height = 180;

@@ -2,6 +2,10 @@ package com.example.greenhouse.web;
 
 import com.example.greenhouse.service.SimulationService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.Locale;
 import java.util.Map;
@@ -32,6 +36,15 @@ public class SimulatorController {
   }
 
   @Operation(summary = "Iniciar simulador", description = "Genera lecturas automaticas cada 5 segundos")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "Simulador iniciado",
+          content = @Content(mediaType = "application/json",
+              examples = @ExampleObject(value = "{\"status\":\"STARTED\",\"intervalSeconds\":5}"))),
+      @ApiResponse(responseCode = "401", description = "No autenticado"),
+      @ApiResponse(responseCode = "403", description = "No autorizado (requiere ADMIN u OPERATOR)"),
+      @ApiResponse(responseCode = "409", description = "El simulador ya esta en ejecucion"),
+      @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+  })
   @PostMapping("/start")
   @PreAuthorize("hasAnyRole('ADMIN', 'OPERATOR')")
   public Map<String, Object> start(Locale locale) {
@@ -44,6 +57,14 @@ public class SimulatorController {
   }
 
   @Operation(summary = "Detener simulador", description = "Detiene la generacion automatica de lecturas")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "Simulador detenido",
+          content = @Content(mediaType = "application/json",
+              examples = @ExampleObject(value = "{\"status\":\"STOPPED\"}"))),
+      @ApiResponse(responseCode = "401", description = "No autenticado"),
+      @ApiResponse(responseCode = "403", description = "No autorizado (requiere ADMIN u OPERATOR)"),
+      @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+  })
   @PostMapping("/stop")
   @PreAuthorize("hasAnyRole('ADMIN', 'OPERATOR')")
   public Map<String, Object> stop() {
@@ -52,6 +73,13 @@ public class SimulatorController {
   }
 
   @Operation(summary = "Estado del simulador", description = "Devuelve si el simulador esta activo")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "Estado del simulador",
+          content = @Content(mediaType = "application/json",
+              examples = @ExampleObject(value = "{\"running\":true,\"intervalSeconds\":5}"))),
+      @ApiResponse(responseCode = "401", description = "No autenticado"),
+      @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+  })
   @GetMapping("/status")
   @PreAuthorize("isAuthenticated()")
   public Map<String, Object> status() {

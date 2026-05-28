@@ -16,9 +16,18 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * In-memory rate limiter for authentication endpoints.
- * Tracks attempts by IP + identifier (email or path) and blocks after 5 failures in 15 minutes.
- * Returns HTTP 429 Too Many Requests with Retry-After header.
+ * Filtro de rate limiting en memoria para endpoints de autenticación.
+ *
+ * Registra intentos fallidos por IP + identificador (email o ruta) y bloquea
+ * después de 5 fallos en 15 minutos. Retorna HTTP 429 Too Many Requests con
+ * header Retry-After.
+ *
+ * Rutas protegidas: /api/auth/login, /api/auth/refresh,
+ * /api/auth/forgot-password, /api/auth/reset-password.
+ *
+ * @author GreenHouse Team
+ * @version 2.1.0
+ * @since 2.1.0
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)

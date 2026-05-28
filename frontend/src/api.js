@@ -1,8 +1,33 @@
+/**
+ * Centralized API layer for Greenhouse Manager.
+ *
+ * Architecture:
+ * - All HTTP calls go through three core helpers (sendJson, fetchJson, deleteJson)
+ *   which automatically attach Bearer tokens and Accept-Language headers.
+ * - On 401, the helpers attempt a token refresh via the httpOnly refresh cookie;
+ *   if the refresh succeeds, the original request is retried transparently.
+ * - On refresh failure, the stored session is cleared and the auth callback fires,
+ *   bouncing the user back to the login screen.
+ * - On 403 (forbidden), the session is NOT invalidated – the user is authenticated
+ *   but lacks permission for that resource. If the message mentions "verification",
+ *   the unverified banner is shown instead.
+ *
+ * Session storage:
+ * - The JWT (access token) and user metadata are persisted in localStorage under
+ *   the key "greenhouse-session".
+ * - The httpOnly refresh cookie is managed by the browser; this layer only sends
+ *   credentials: 'include' to make it available on refresh requests.
+ *
+ * Accept-Language propagation:
+ * - Every request includes an Accept-Language header derived from the user's
+ *   language preference so the backend can return localized error messages.
+ */
+
 import { getSavedLanguage } from './i18n.js';
 
 const STORAGE_KEY = 'greenhouse-session';
 
-// --- Session management (centralizado) ---
+// --- Session management (centralized) ---
 
 export function getStoredSession() {
   try {
@@ -17,8 +42,16 @@ export function clearStoredSession() {
   localStorage.removeItem(STORAGE_KEY);
 }
 
+/**
+ * Callback pattern for cross-cutting auth concerns.
+ * Instead of importing navigate() in the API layer (tight coupling), the App
+ * component registers callbacks that the API layer fires on 401/403-unverified.
+ * This keeps the API module framework-agnostic.
+ */
 let onUnauthorizedCallback = null;
 let onUnverifiedCallback = null;
+
+/** Gate to prevent concurrent token refresh requests from stacking up. */
 let refreshAttempted = false;
 
 export function setOnUnauthorized(callback) {
@@ -42,6 +75,19 @@ function triggerUnverified() {
   }
 }
 
+/**
+ * Attempts to obtain a fresh access token from the httpOnly refresh cookie.
+ *
+ * Flow:
+ * 1. A gate (refreshAttempted) prevents concurrent refresh calls – if one is
+ *    already in flight, subsequent callers wait for the 10 s cooldown to expire.
+ * 2. Sends a POST to /api/auth/refresh with credentials: 'include' so the
+ *    browser attaches the httpOnly cookie automatically.
+ * 3. If the backend returns a new token, it is merged into the localStorage
+ *    session. The gate is released immediately.
+ * 4. On failure, the gate stays locked for 10 s (finally block) to avoid
+ *    hammering the server when the refresh cookie itself is expired/missing.
+ */
 async function tryRefreshToken() {
   if (refreshAttempted) return false;
   refreshAttempted = true;
@@ -82,6 +128,13 @@ export function resetRefreshAttempt() {
 
 // --- Auth header builder (centralizado) ---
 
+/**
+ * Builds headers for every authenticated request.
+ * - Injects the Bearer token from localStorage if a session exists.
+ * - Propagates the user's language preference via Accept-Language so the
+ *   backend can return localized validation/error messages.
+ * - Merges any caller-supplied extra headers (e.g. Content-Type).
+ */
 function authHeaders(extra = {}) {
   const session = getStoredSession();
   if (session?.token) {
@@ -93,6 +146,12 @@ function authHeaders(extra = {}) {
   return extra;
 }
 
+/**
+ * Extracts a human-readable error message from a failed response body.
+ * Handles common Spring Boot error shapes: { message }, { error }, or
+ * validation errors as an array of { defaultMessage } objects.
+ * Falls back to the HTTP status code if the body cannot be parsed.
+ */
 async function parseError(response) {
   try {
     const data = await response.json();
@@ -105,6 +164,23 @@ async function parseError(response) {
   }
 }
 
+/**
+ * Centralized HTTP error handler invoked after every API call.
+ *
+ * Decision tree:
+ * - 401 + shouldRefresh=true  → tryRefreshToken(); if success, signal retry.
+ *   If refresh fails, clear session and fire onUnauthorized (logout).
+ * - 401 + shouldRefresh=false → refresh was already attempted; escalate error.
+ * - 403                       → user is authenticated but lacks permission.
+ *   If the message contains "verif", show the unverified banner.
+ *   **The session is never invalidated on 403.**
+ * - 429                       → rate-limited; surface the server message.
+ * - All other statuses        → handled upstream by the caller.
+ *
+ * @param {Response} response
+ * @param {boolean} shouldRefresh - whether a token refresh is allowed for 401.
+ * @returns {Promise<{retry: boolean}|null>} {retry:true} means re-send the request.
+ */
 async function handleAuthErrors(response, shouldRefresh = true) {
   const status = response.status;
 
@@ -139,6 +215,13 @@ async function handleAuthErrors(response, shouldRefresh = true) {
 
 // --- HTTP helpers (centralizados, con auth automatico) ---
 
+/**
+ * Core JSON mutator (POST/PUT/PATCH).
+ *
+ * Transparent retry on 401: if the first attempt gets a 401 and token refresh
+ * succeeds, the same request is re-sent with the fresh token. The retry is
+ * marked shouldRefresh=false so it won't loop infinitely.
+ */
 async function sendJson(path, method, body) {
   const url = getApiUrl(path);
   let response = await fetch(url, {
@@ -214,6 +297,17 @@ export function getApiUrl(path) {
   return `${API_BASE}${path}`;
 }
 
+/**
+ * Initiates the Google OAuth2 authorization code flow.
+ *
+ * Architecture: the browser is redirected to {frontendOrigin}/oauth2/authorization/google
+ * which nginx (or the Vite dev proxy) forwards to the Spring Boot backend.
+ * After the user consents, Google redirects back to the frontend with
+ * ?oauth=google&status=success, where App.jsx picks up the callback,
+ * fetches /api/auth/me to get user info, and requests /api/auth/refresh
+ * to obtain a JWT access token. The httpOnly refresh cookie is set by the
+ * backend during the OAuth callback and is never visible to JavaScript.
+ */
 export function beginGoogleOAuth() {
   // Navigate from the frontend's own domain so the OAuth callback
   // returns to the same origin. This ensures the JWT cookie is set
@@ -399,6 +493,11 @@ export function updateUserRole(userId, role) {
   return sendJson(`/api/users/${userId}/role`, 'PATCH', { role });
 }
 
+/**
+ * Resolves an alert via PATCH (not POST/PUT).
+ * Implemented inline because it uses PATCH + no JSON body, so sendJson
+ * would send an unnecessary body. Follows the same retry-on-401 pattern.
+ */
 export async function resolveAlert(alertId) {
   const url = getApiUrl(`/api/alerts/${alertId}/resolve`);
   let response = await fetch(url, {

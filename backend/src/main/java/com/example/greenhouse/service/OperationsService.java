@@ -34,6 +34,19 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Servicio operativo central que agrupa CRUD de zonas, sensores, lecturas,
+ * actuadores y reglas con auditoría automática.
+ *
+ * Cada operación de escritura registra un evento en la bitácora de auditoría
+ * ({@link AuditLogService}) con origen MANUAL. Las lecturas adicionalmente
+ * disparan el motor de reglas ({@link RuleEngineService}) para evaluación
+ * de umbrales y automatizaciones.
+ *
+ * @author GreenHouse Team
+ * @version 2.1.0
+ * @since 2.1.0
+ */
 @Service
 public class OperationsService {
   private static final Logger log = LoggerFactory.getLogger(OperationsService.class);
@@ -72,6 +85,12 @@ public class OperationsService {
     this.ruleEngine = ruleEngine;
   }
 
+  /**
+   * Obtiene todas las zonas registradas.
+   *
+   * @return lista de zonas, vacía si no existen
+   * @since 2.1.0
+   */
   @Transactional(readOnly = true)
   public List<Zone> findZones() {
     return zones.findAll();
@@ -140,6 +159,21 @@ public class OperationsService {
     return readings.findAll();
   }
 
+  /**
+   * Registra una nueva lectura de sensor y dispara el motor de reglas.
+   *
+   * Flujo:
+   * <ol>
+   *   <li>Busca el sensor asociado.</li>
+   *   <li>Crea la lectura con timestamp actual.</li>
+   *   <li>Audita la operación.</li>
+   *   <li>Evalúa la lectura contra umbrales y reglas automáticas.</li>
+   * </ol>
+   *
+   * @param request datos de la lectura (sensorId, valor)
+   * @return la lectura persistida
+   * @since 2.1.0
+   */
   @Transactional
   public Reading createReading(ReadingRequest request) {
     Sensor sensor = sensors.findById(request.sensorId()).orElseThrow();

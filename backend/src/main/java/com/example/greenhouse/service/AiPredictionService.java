@@ -16,9 +16,23 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * Local AI prediction service based on historical sensor readings.
- * Uses moving averages, linear trend, and variance analysis.
- * No external APIs. All calculations are local against PostgreSQL data.
+ * Servicio de predicción IA local basado en lecturas históricas de sensores.
+ * Utiliza medias móviles ponderadas, proyección de tendencia lineal y análisis
+ * de varianza sobre datos reales de PostgreSQL.
+ *
+ * Reglas de negocio:
+ * <ul>
+ *   <li>No requiere APIs externas — todos los cálculos son locales.</li>
+ *   <li>Predice el próximo valor usando media móvil ponderada + pendiente lineal
+ *       sobre las últimas 20 lecturas.</li>
+ *   <li>Evalúa riesgo combinando temperatura, humedad, tendencias y umbrales
+ *       configurados en los sensores.</li>
+ *   <li>Genera recomendaciones accionables basadas en reglas agronómicas.</li>
+ * </ul>
+ *
+ * @author GreenHouse Team
+ * @version 2.1.0
+ * @since 2.1.0
  */
 @Service
 public class AiPredictionService {
@@ -33,6 +47,22 @@ public class AiPredictionService {
     this.sensors = sensors;
   }
 
+  /**
+   * Ejecuta el pipeline completo de predicción: carga lecturas históricas,
+   * calcula valores futuros, evalúa riesgo y genera recomendaciones.
+   *
+   * Flujo:
+   * <ol>
+   *   <li>Busca sensores de temperatura y humedad.</li>
+   *   <li>Carga las últimas 20 lecturas de cada sensor.</li>
+   *   <li>Calcula predicción mediante media móvil ponderada + pendiente lineal.</li>
+   *   <li>Evalúa nivel de riesgo (HIGH, MEDIUM, LOW) según umbrales.</li>
+   *   <li>Genera recomendación textual según condiciones.</li>
+   * </ol>
+   *
+   * @return resultado de predicción con valores pronosticados, riesgo y recomendación
+   * @since 2.1.0
+   */
   public PredictionResult predict() {
     List<Sensor> allSensors = sensors.findAll();
 

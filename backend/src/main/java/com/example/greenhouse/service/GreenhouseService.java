@@ -17,7 +17,18 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Business operations for greenhouse records. */
+/**
+ * Servicio de operaciones de negocio para el ciclo de vida de invernaderos,
+ * incluyendo CRUD de invernaderos, cultivos, sensores y eventos de riego.
+ *
+ * Las operaciones son transaccionales — las mutaciones en invernaderos
+ * cascadan a entidades hijas (cultivos, sensores, riegos) mediante
+ * JPA {@code CascadeType} y {@code orphanRemoval}.
+ *
+ * @author GreenHouse Team
+ * @version 2.1.0
+ * @since 2.1.0
+ */
 @Service
 public class GreenhouseService {
   private static final Logger log = LoggerFactory.getLogger(GreenhouseService.class);
@@ -28,16 +39,38 @@ public class GreenhouseService {
     this.repository = repository;
   }
 
+  /**
+   * Lists all greenhouses with their child collections (crops, sensors,
+   * irrigation events) eagerly loaded via JPA fetch joins.
+   *
+   * @return all greenhouses, empty list if none exist
+   * @since 2.1.0
+   */
   @Transactional(readOnly = true)
   public List<Greenhouse> findAll() {
     return repository.findAll();
   }
 
+  /**
+   * Retrieves a single greenhouse by primary key.
+   *
+   * @param id greenhouse ID
+   * @return the found greenhouse
+   * @throws IllegalArgumentException if no greenhouse exists with the given id
+   * @since 2.1.0
+   */
   @Transactional(readOnly = true)
   public Greenhouse findById(long id) {
     return repository.findById(id).orElseThrow(() -> new IllegalArgumentException("Greenhouse not found"));
   }
 
+  /**
+   * Creates a new greenhouse from the validated request DTO.
+   *
+   * @param request greenhouse creation payload with name, location, area and active status
+   * @return the persisted greenhouse
+   * @since 2.1.0
+   */
   @Transactional
   public Greenhouse create(GreenhouseRequest request) {
     Greenhouse greenhouse = new Greenhouse();
@@ -50,6 +83,15 @@ public class GreenhouseService {
     return saved;
   }
 
+  /**
+   * Updates an existing greenhouse's mutable fields.
+   *
+   * @param id      greenhouse ID
+   * @param request update payload
+   * @return the updated greenhouse after flush
+   * @throws IllegalArgumentException if greenhouse not found
+   * @since 2.1.0
+   */
   @Transactional
   public Greenhouse update(long id, GreenhouseRequest request) {
     Greenhouse greenhouse = findById(id);
@@ -61,6 +103,13 @@ public class GreenhouseService {
     return repository.saveAndFlush(greenhouse);
   }
 
+  /**
+   * Deletes a greenhouse and all its associated data.
+   *
+   * @param id greenhouse ID to delete
+   * @throws IllegalArgumentException if greenhouse not found
+   * @since 2.1.0
+   */
   @Transactional
   public void delete(long id) {
     Greenhouse greenhouse = findById(id);
@@ -68,6 +117,14 @@ public class GreenhouseService {
     log.info("Deleted greenhouse: {}", id);
   }
 
+  /**
+   * Adds a crop to a greenhouse.
+   *
+   * @param greenhouseId parent greenhouse ID
+   * @param request      crop data (name, variety, planting dates)
+   * @return the updated greenhouse
+   * @since 2.1.0
+   */
   @Transactional
   public Greenhouse addCrop(long greenhouseId, CropRequest request) {
     Greenhouse greenhouse = findById(greenhouseId);
@@ -82,6 +139,11 @@ public class GreenhouseService {
     return repository.saveAndFlush(greenhouse);
   }
 
+  /**
+   * Updates an existing crop's data.
+   *
+   * @since 2.1.0
+   */
   @Transactional
   public Greenhouse updateCrop(long greenhouseId, long cropId, CropRequest request) {
     Greenhouse greenhouse = findById(greenhouseId);
@@ -97,6 +159,11 @@ public class GreenhouseService {
     return repository.saveAndFlush(greenhouse);
   }
 
+  /**
+   * Removes a crop from a greenhouse.
+   *
+   * @since 2.1.0
+   */
   @Transactional
   public void deleteCrop(long greenhouseId, long cropId) {
     Greenhouse greenhouse = findById(greenhouseId);
@@ -109,6 +176,11 @@ public class GreenhouseService {
     repository.saveAndFlush(greenhouse);
   }
 
+  /**
+   * Registers a new sensor in a greenhouse with type, unit and threshold limits.
+   *
+   * @since 2.1.0
+   */
   @Transactional
   public Greenhouse addSensor(long greenhouseId, SensorRequest request) {
     Greenhouse greenhouse = findById(greenhouseId);
@@ -124,6 +196,11 @@ public class GreenhouseService {
     return repository.saveAndFlush(greenhouse);
   }
 
+  /**
+   * Updates an existing sensor's metadata.
+   *
+   * @since 2.1.0
+   */
   @Transactional
   public Greenhouse updateSensor(long greenhouseId, long sensorId, SensorRequest request) {
     Greenhouse greenhouse = findById(greenhouseId);
@@ -140,6 +217,11 @@ public class GreenhouseService {
     return repository.saveAndFlush(greenhouse);
   }
 
+  /**
+   * Removes a sensor from a greenhouse.
+   *
+   * @since 2.1.0
+   */
   @Transactional
   public void deleteSensor(long greenhouseId, long sensorId) {
     Greenhouse greenhouse = findById(greenhouseId);
@@ -152,6 +234,14 @@ public class GreenhouseService {
     repository.saveAndFlush(greenhouse);
   }
 
+  /**
+   * Records a manual irrigation event for a greenhouse.
+   *
+   * The event is timestamped at creation time. Mode defaults to
+   * {@link IrrigationMode#MANUAL} if not specified.
+   *
+   * @since 2.1.0
+   */
   @Transactional
   public Greenhouse addIrrigation(long greenhouseId, IrrigationRequest request) {
     Greenhouse greenhouse = findById(greenhouseId);
@@ -166,6 +256,11 @@ public class GreenhouseService {
     return repository.saveAndFlush(greenhouse);
   }
 
+  /**
+   * Updates an existing irrigation event's parameters.
+   *
+   * @since 2.1.0
+   */
   @Transactional
   public Greenhouse updateIrrigation(long greenhouseId, long eventId, IrrigationRequest request) {
     Greenhouse greenhouse = findById(greenhouseId);
@@ -180,6 +275,11 @@ public class GreenhouseService {
     return repository.saveAndFlush(greenhouse);
   }
 
+  /**
+   * Removes an irrigation event from a greenhouse.
+   *
+   * @since 2.1.0
+   */
   @Transactional
   public void deleteIrrigation(long greenhouseId, long eventId) {
     Greenhouse greenhouse = findById(greenhouseId);

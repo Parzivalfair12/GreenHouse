@@ -2,6 +2,13 @@ import { useState } from 'react';
 import { ChevronDown, ChevronRight, Key, Link2, ListChecks, Table2 } from 'lucide-react';
 import { Panel, Section } from './shared.jsx';
 
+/* Modelo de datos estático del dominio GreenHouse.
+ * Cada entidad refleja una tabla de la base de datos PostgreSQL.
+ * Estructura: { name, table, description, fields[], relations[] }
+ *   - fields: { name, type, pk, nullable, default, enum, unique, validation, desc }
+ *   - relations: lista de nombres de entidades relacionadas (FK lógicas)
+ * Las entidades con field.enum = true se marcan con icono ListChecks.
+ * Los fields con pk = true muestran icono Key; unique muestra "U"; validation muestra "V". */
 const ENTITIES = [
   {
     name: 'Greenhouse', table: 'greenhouse', description: 'Invernadero que agrupa cultivos, sensores y riegos',
@@ -127,6 +134,10 @@ const ENTITIES = [
   }
 ];
 
+/* Renderiza una fila de campo con indicadores visuales:
+ *   - PK (Key icon), Unique (U), Enum (ListChecks), Validation (V)
+ *   - Tipo, nulabilidad (✓/—), valor por defecto y descripción.
+ * La descripción cae a field.validation si field.desc no existe. */
 function FieldRow({ field }) {
   return (
     <tr>
@@ -145,11 +156,16 @@ function FieldRow({ field }) {
   );
 }
 
+/* Tarjeta colapsable de una entidad del diccionario de datos.
+ * Manejo de estado: open/close local con useState, defaultOpen para la primera entidad.
+ * Renderiza cabecera (nombre, tabla, conteos), tabla de campos, y relaciones FK.
+ * Las relaciones se muestran como tags con nombres de entidades relacionadas. */
 function EntityCard({ entity, defaultOpen }) {
   const [open, setOpen] = useState(defaultOpen);
 
   return (
     <div className="dicCard">
+      {/* Header clickeable: expande/colapsa */}
       <div className="dicHeader" onClick={() => setOpen(!open)}>
         <span className="dicHeaderLeft">
           {open ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
@@ -165,6 +181,7 @@ function EntityCard({ entity, defaultOpen }) {
       </div>
       {open && (
         <div className="dicBody">
+          {/* Tabla de campos con tipo, nulabilidad, default y descripción */}
           <table className="dicTable">
             <thead>
               <tr>
@@ -179,6 +196,7 @@ function EntityCard({ entity, defaultOpen }) {
               {entity.fields.map((f) => <FieldRow key={f.name} field={f} />)}
             </tbody>
           </table>
+          {/* Relaciones FK con otras entidades */}
           {entity.relations && entity.relations.length > 0 && (
             <div className="dicRelations">
               <Link2 size={16} />
@@ -194,15 +212,23 @@ function EntityCard({ entity, defaultOpen }) {
   );
 }
 
+/* Sección de diccionario de datos.
+ * Renderiza el modelo ENTITIES (estático, parseado del modelo JPA) como tarjetas colapsables.
+ * Generación de tabla: cada entidad → tabla con campos, tipos, restricciones y descripciones.
+ * Relaciones FK: se listan como tags al final de cada entidad.
+ * Enums: los campos con enum: true se marcan con icono ListChecks en la leyenda y en FieldRow.
+ * i18n: todos los encabezados y leyendas via prop 't'. */
 export function DataDictionarySection({ t }) {
   return (
     <Section title={t.dataDictionaryTitle} subtitle={t.dataDictionarySubtitle}>
+      {/* Leyenda de iconos: PK, Unique, Enum, Validation */}
       <div className="dicLegend">
         <span><Key size={14} /> {t.primaryKey}</span>
         <span><span className="dicUniqueBadge">U</span> {t.uniqueConstraint}</span>
         <span><ListChecks size={14} /> {t.enumLabel}</span>
         <span><span className="dicValidationBadge">V</span> {t.validationLabel}</span>
       </div>
+      {/* Entidades del modelo: primera abierta por defecto (defaultOpen={i === 0}) */}
       {ENTITIES.map((e, i) => <EntityCard key={e.name} entity={e} defaultOpen={i === 0} />)}
     </Section>
   );

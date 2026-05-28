@@ -21,6 +21,26 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+/**
+ * Filtro de seguridad que intercepta todas las peticiones HTTP para extraer
+ * y validar el token JWT, estableciendo el contexto de autenticación de
+ * Spring Security.
+ *
+ * Flujo:
+ * <ol>
+ *   <li>Extrae el token del header {@code Authorization: Bearer <token>}
+ *       o de la cookie {@code jwt}.</li>
+ *   <li>Si hay token válido, establece {@link SecurityContextHolder} con
+ *       email y roles del usuario.</li>
+ *   <li>Si el token está expirado, responde 401 con mensaje i18n.</li>
+ *   <li>Si no hay token, la petición continúa sin autenticación
+ *       (el SecurityFilterChain determinará si requiere auth).</li>
+ * </ol>
+ *
+ * @author GreenHouse Team
+ * @version 2.1.0
+ * @since 2.1.0
+ */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
   private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
@@ -33,6 +53,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     this.objectMapper = objectMapper;
   }
 
+  /**
+   * Intercepta cada petición HTTP para procesar el token JWT.
+   *
+   * @param request     petición HTTP entrante
+   * @param response    respuesta HTTP saliente
+   * @param filterChain cadena de filtros Spring Security
+   * @throws ServletException si ocurre un error de servlet
+   * @throws IOException      si ocurre un error de E/S
+   */
   @Override
   protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
       FilterChain filterChain) throws ServletException, IOException {
@@ -82,6 +111,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     filterChain.doFilter(request, response);
   }
 
+  /**
+   * Extrae el token JWT del header Authorization (Bearer) o de la cookie jwt.
+   *
+   * Orden de precedencia:
+   * <ol>
+   *   <li>Header {@code Authorization: Bearer <token>}</li>
+   *   <li>Cookie {@code jwt} (usada para OAuth2 con httpOnly)</li>
+   * </ol>
+   *
+   * @param request petición HTTP
+   * @return token JWT o {@code null} si no se encuentra
+   */
   private String extractToken(HttpServletRequest request) {
     String header = request.getHeader("Authorization");
     if (StringUtils.hasText(header) && header.startsWith("Bearer ")) {

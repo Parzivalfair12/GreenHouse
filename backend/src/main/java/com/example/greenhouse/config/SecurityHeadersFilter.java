@@ -11,8 +11,24 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Adds security headers to all HTTP responses.
- * Executed early in the filter chain.
+ * Filtro que agrega headers de seguridad a todas las respuestas HTTP.
+ *
+ * Headers incluidos:
+ * <ul>
+ *   <li>X-Content-Type-Options: nosniff — previene MIME sniffing</li>
+ *   <li>X-Frame-Options: DENY — previene clickjacking</li>
+ *   <li>Referrer-Policy — control de información de referencia</li>
+ *   <li>Content-Security-Policy — restricción de recursos (scripts, estilos,
+ *       conexiones, frames)</li>
+ *   <li>Permissions-Policy — deshabilita APIs sensibles (geolocalización,
+ *       micrófono, cámara)</li>
+ * </ul>
+ *
+ * Se ejecuta con la máxima precedencia en la cadena de filtros.
+ *
+ * @author GreenHouse Team
+ * @version 2.1.0
+ * @since 2.1.0
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 20)

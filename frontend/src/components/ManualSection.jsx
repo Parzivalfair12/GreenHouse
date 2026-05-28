@@ -15,9 +15,17 @@ const manualIcons = {
   users: Users
 };
 
+/* Manual de usuario interactivo del sistema.
+ * Flujo de datos: todo el contenido (módulos, pasos, mapa de relaciones) viene de las traducciones i18n (t).
+ *   No hay datos de backend; es completamente estático.
+ * Iconos: mapeo manualIcons asocia cada module.id a un icono de lucide-react.
+ *   Si no hay mapeo, usa ClipboardList como fallback.
+ * Estructura: hero (propósito), grid de módulos (cada uno con título, descripción y relación),
+ *   split con flujo de operación (ordenado) y mapa relacional del sistema. */
 export function ManualSection({ t }) {
   return (
     <Section title={t.manualTitle} subtitle={t.manualSubtitle}>
+      {/* Hero: label + título + texto de propósito */}
       <div className="manualHero">
         <div>
           <span className="statusDot"><AlertTriangle size={16} />{t.manualPurposeLabel}</span>
@@ -26,6 +34,7 @@ export function ManualSection({ t }) {
         </div>
       </div>
 
+      {/* Grid de módulos del sistema, cada uno con icono, título, descripción y relación */}
       <div className="manualGrid">
         {t.manualModules.map((module) => {
           const Icon = manualIcons[module.id] ?? ClipboardList;
@@ -43,6 +52,7 @@ export function ManualSection({ t }) {
         })}
       </div>
 
+      {/* Panel dividido: flujo de operación y mapa de relaciones del sistema */}
       <div className="manualSplit">
         <Panel title={t.manualFlowTitle}>
           <ol className="manualSteps">
@@ -54,6 +64,7 @@ export function ManualSection({ t }) {
             {t.manualMap.map((item, index) => (
               <span key={item}>
                 {item}
+                {/* Flecha entre elementos: no se muestra después del último */}
                 {index < t.manualMap.length - 1 && <strong>→</strong>}
               </span>
             ))}

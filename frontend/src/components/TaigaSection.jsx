@@ -9,6 +9,12 @@ const STATUS_COLORS = {
   PENDING: { bg: 'rgba(156, 163, 175, 0.12)', text: '#9ca3af' }
 };
 
+/* Integración con API externa de Taiga para mostrar el backlog del proyecto.
+ * Flujo de datos: al montar el componente, dispara dos fetch paralelos (fetchTaigaStories, fetchTaigaSummary).
+ * Manejo de estado: loading (spinner), error (mensaje + fallback), y datos (stories + summary).
+ * Sincronización con backend: las llamadas se ejecutan en Promise.all; cualquier error se captura y muestra.
+ * i18n: usa valores por defecto (??) como fallback si las traducciones no están definidas.
+ * Cada historia es expandible (expandedId) para mostrar sus criterios de aceptación con estado PASSED/pendiente. */
 export function TaigaSection({ t }) {
   const [stories, setStories] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -16,6 +22,7 @@ export function TaigaSection({ t }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  /* Efecto de carga inicial: resetea estados y consulta ambas APIs simultáneamente */
   useEffect(() => {
     setLoading(true);
     setError(null);
@@ -32,6 +39,7 @@ export function TaigaSection({ t }) {
       .finally(() => setLoading(false));
   }, [t]);
 
+  /* Estado de carga: muestra spinner minimal */
   if (loading) {
     return (
       <Section title={t.taigaTitle ?? 'Historias de Usuario'} subtitle={t.taigaSubtitle ?? 'Backlog del proyecto'}>
@@ -40,6 +48,7 @@ export function TaigaSection({ t }) {
     );
   }
 
+  /* Estado de error: muestra mensaje y sugerencia de disponibilidad */
   if (error) {
     return (
       <Section title={t.taigaTitle ?? 'Historias de Usuario'} subtitle={t.taigaSubtitle ?? 'Backlog del proyecto'}>
@@ -53,6 +62,7 @@ export function TaigaSection({ t }) {
 
   return (
     <Section title={t.taigaTitle ?? 'Historias de Usuario'} subtitle={t.taigaSubtitle ?? 'Backlog del proyecto con criterios de aceptacion'}>
+      {/* Métricas de resumen: total, completadas y porcentaje */}
       {summary && (
         <div className="metrics">
           <Metric icon={<ListChecks />} label={t.totalStories ?? 'Total historias'} value={summary.totalStories ?? 0} />
@@ -65,9 +75,11 @@ export function TaigaSection({ t }) {
         <div className="storiesList">
           {stories.length === 0 && <p className="emptyState">{t.noStories ?? 'No hay historias disponibles'}</p>}
           {stories.map((story) => {
+            /* Asigna color según estado (COMPLETED, IN_PROGRESS, PENDING) */
             const colors = STATUS_COLORS[story.status] ?? STATUS_COLORS.PENDING;
             return (
               <article key={story.id} className="storyCard" style={{ borderLeftColor: colors.text }}>
+                {/* Encabezado clickeable: expande/colapsa criterios de aceptación */}
                 <div className="storyHeader" onClick={() => setExpandedId(expandedId === story.id ? null : story.id)}>
                   <span className="storyEpic" style={{ color: colors.text }}>{story.epic}</span>
                   <strong className="storyTitle">{story.title}</strong>
@@ -77,6 +89,7 @@ export function TaigaSection({ t }) {
                   </span>
                 </div>
                 <p className="storyDesc">{story.description}</p>
+                {/* Criterios de aceptación visibles solo cuando la historia está expandida */}
                 {expandedId === story.id && Array.isArray(story.criteria) && story.criteria.length > 0 && (
                   <div className="storyCriteria">
                     <strong>{t.acceptanceCriteria ?? 'Criterios de aceptacion'}:</strong>

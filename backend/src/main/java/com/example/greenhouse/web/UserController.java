@@ -5,6 +5,13 @@ import com.example.greenhouse.repository.AppUserRepository;
 import com.example.greenhouse.web.dto.UserCreateRequest;
 import com.example.greenhouse.web.dto.UserResponse;
 import com.example.greenhouse.web.dto.UserRoleUpdateRequest;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Locale;
@@ -21,7 +28,21 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-/** User and role administration backed by PostgreSQL. */
+/**
+ * Controlador REST para administración de usuarios y roles.
+ *
+ * Seguridad:
+ * <ul>
+ *   <li>Todos los endpoints requieren rol ADMIN.</li>
+ *   <li>Las contraseñas se almacenan usando BCrypt.</li>
+ *   <li>Los mensajes de error se resuelven por MessageSource (i18n).</li>
+ * </ul>
+ *
+ * @author GreenHouse Team
+ * @version 2.1.0
+ * @since 2.1.0
+ */
+@Tag(name = "Usuarios", description = "Administracion de usuarios y roles (solo ADMIN)")
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
@@ -35,6 +56,13 @@ public class UserController {
     this.messages = messages;
   }
 
+  @Operation(summary = "Listar usuarios", description = "Devuelve todos los usuarios registrados (requiere ADMIN)")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "Lista de usuarios"),
+      @ApiResponse(responseCode = "401", description = "No autenticado"),
+      @ApiResponse(responseCode = "403", description = "No autorizado (requiere ADMIN)"),
+      @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+  })
   @GetMapping
   @PreAuthorize("hasRole('ADMIN')")
   public List<UserResponse> list() {
@@ -43,9 +71,24 @@ public class UserController {
         .toList();
   }
 
+  @Operation(summary = "Crear usuario", description = "Crea un nuevo usuario con rol especifico (requiere ADMIN)")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "Usuario creado exitosamente",
+          content = @Content(mediaType = "application/json",
+              examples = @ExampleObject(value = "{\"id\":2,\"email\":\"operador@ejemplo.com\",\"fullName\":\"Operador Sistema\",\"role\":\"OPERATOR\",\"provider\":\"email\",\"verified\":true}"))),
+      @ApiResponse(responseCode = "400", description = "Solicitud invalida (datos incorrectos)"),
+      @ApiResponse(responseCode = "401", description = "No autenticado"),
+      @ApiResponse(responseCode = "403", description = "No autorizado (requiere ADMIN)"),
+      @ApiResponse(responseCode = "409", description = "El correo ya existe"),
+      @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+  })
   @PostMapping
   @PreAuthorize("hasRole('ADMIN')")
-  public UserResponse create(@Valid @RequestBody UserCreateRequest request, Locale locale) {
+  public UserResponse create(
+      @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Datos del nuevo usuario", required = true,
+          content = @Content(mediaType = "application/json",
+              examples = @ExampleObject(value = "{\"email\":\"operador@ejemplo.com\",\"fullName\":\"Operador Sistema\",\"password\":\"Pass1234\",\"role\":\"OPERATOR\"}")))
+      @Valid @RequestBody UserCreateRequest request, Locale locale) {
     users.findByEmail(request.email()).ifPresent(existing -> {
       throw new ResponseStatusException(HttpStatus.CONFLICT, messages.getMessage("user.email.exists", null, locale));
     });
@@ -59,9 +102,25 @@ public class UserController {
     return UserResponse.from(users.save(user));
   }
 
+  @Operation(summary = "Actualizar rol de usuario", description = "Cambia el rol de un usuario existente (requiere ADMIN)")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "Rol actualizado exitosamente",
+          content = @Content(mediaType = "application/json",
+              examples = @ExampleObject(value = "{\"id\":1,\"email\":\"usuario@ejemplo.com\",\"fullName\":\"Juan Perez\",\"role\":\"ADMIN\",\"provider\":\"email\",\"verified\":true}"))),
+      @ApiResponse(responseCode = "400", description = "Solicitud invalida (rol incorrecto)"),
+      @ApiResponse(responseCode = "401", description = "No autenticado"),
+      @ApiResponse(responseCode = "403", description = "No autorizado (requiere ADMIN)"),
+      @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
+      @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+  })
   @PatchMapping("/{id}/role")
   @PreAuthorize("hasRole('ADMIN')")
-  public UserResponse updateRole(@PathVariable Long id, @Valid @RequestBody UserRoleUpdateRequest request,
+  public UserResponse updateRole(
+      @Parameter(description = "ID del usuario", required = true, example = "1") @PathVariable Long id,
+      @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Nuevo rol del usuario", required = true,
+          content = @Content(mediaType = "application/json",
+              examples = @ExampleObject(value = "{\"role\":\"ADMIN\"}")))
+      @Valid @RequestBody UserRoleUpdateRequest request,
       Locale locale) {
     AppUser user = users.findById(id)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,

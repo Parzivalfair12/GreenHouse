@@ -28,8 +28,25 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Rule engine that evaluates sensor readings against thresholds and automation rules.
- * Triggered after every reading creation (manual or simulated).
+ * Motor de reglas que evalúa lecturas de sensores contra umbrales y reglas
+ * de automatización en un solo paso transaccional. Se dispara después de
+ * cada creación de lectura (manual o simulada).
+ *
+ * Pipeline de evaluación:
+ * <ol>
+ *   <li>Verificación de umbrales — crea alertas cuando las lecturas superan
+ *       los límites min/max configurados.</li>
+ *   <li>Evaluación de reglas — busca reglas {@code LOW_HUMIDITY_IRRIGATION}
+ *       activas para sensores de humedad/suelo y activa actuadores de riego.</li>
+ * </ol>
+ *
+ * Todos los mensajes visibles al usuario (alertas, bitácora) se resuelven
+ * mediante {@link MessageSource} usando
+ * {@link LocaleContextHolder#getLocale()}.
+ *
+ * @author GreenHouse Team
+ * @version 2.1.0
+ * @since 2.1.0
  */
 @Service
 public class RuleEngineService {
@@ -62,6 +79,23 @@ public class RuleEngineService {
     return messages.getMessage(key, args, key, LocaleContextHolder.getLocale());
   }
 
+  /**
+   * Entry point for reading evaluation. Delegates to threshold checks and
+   * rule evaluation in sequence.
+   *
+   * Business flow:
+   * <ul>
+   *   <li>Thresholds produce WARNING (above max) or CRITICAL (below min)
+   *       alerts.</li>
+   *   <li>Only humidity and soil-moisture sensors participate in automation
+   *       rules; other sensor types ignore rule evaluation.</li>
+   *   <li>Sensors without a parent greenhouse are skipped (orphan data).</li>
+   * </ul>
+   *
+   * @param sensor  the sensor that produced the reading
+   * @param reading the newly created measurement value
+   * @since 2.1.0
+   */
   @Transactional
   public void evaluateReading(Sensor sensor, Reading reading) {
     evaluateThresholds(sensor, reading);
