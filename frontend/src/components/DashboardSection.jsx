@@ -10,14 +10,14 @@ export function DashboardSection({ totals, selected, alerts, dashboard, readings
       <div className="simulatorPanel">
         <div className="simulatorStatus">
           <span className={`pulseDot ${simulatorRunning ? 'active' : ''}`} />
-          <span>Simulador IoT {simulatorRunning ? 'activo' : 'inactivo'}</span>
+          <span>{simulatorRunning ? t.simulatorActive : t.simulatorInactive}</span>
         </div>
         <button
           type="button"
           className={`simulatorBtn ${simulatorRunning ? 'stop' : 'start'}`}
           onClick={simulatorRunning ? onStopSimulator : onStartSimulator}
         >
-          {simulatorRunning ? <><Pause size={16} /> Detener</> : <><Play size={16} /> Iniciar simulacion</>}
+          {simulatorRunning ? <><Pause size={16} /> {t.stopSimulation}</> : <><Play size={16} /> {t.startSimulation}</>}
         </button>
       </div>
       <section className="metrics" aria-label="Metricas">
@@ -43,7 +43,7 @@ function LatestReadings({ readings, sensors, t }) {
   const sensorMap = new Map(sensors.map((s) => [s.id, s]));
   const latest = readings.slice().sort((a, b) => new Date(b.recordedAt) - new Date(a.recordedAt)).slice(0, 6);
   return (
-    <Panel title="Ultimas lecturas">
+    <Panel title={t.latestReadings}>
       <div className="latestReadingsGrid">
         {latest.map((r) => {
           const sensor = sensorMap.get(r.sensorId);
@@ -73,7 +73,7 @@ function OverviewPanel({ selected, dashboard, t }) {
       <div className="operativeGrid">
         <Panel title={selected.name}>
           <div className="overviewStats">
-            <span className="pill active">{dashboard?.globalStatus ?? 'ESTABLE'}</span>
+            <span className="pill active">{dashboard?.globalStatus ?? t.stable}</span>
             <span>{selected.location}</span>
             <strong>{selected.areaSquareMeters} m2</strong>
             <span>{selected.cropCount} {t.crops.toLowerCase()}</span>

@@ -148,6 +148,69 @@ La documentacion interactiva esta disponible en `/swagger-ui.html` con el backen
 | `OPERATOR` | Lectura + escritura sensores, alertas, riegos |
 | `ADMIN` | Acceso completo: usuarios, configuracion, CRUD invernaderos |
 
+## Internacionalizacion (i18n)
+
+El sistema soporta **español (es)** e **ingles (en)** de forma completa, tanto en frontend como backend.
+
+### Arquitectura i18n
+
+**Frontend (React)**
+- Diccionario centralizado en `frontend/src/i18n.js` con estructura plana y backward-compatible.
+- Helper `translate(language, path, fallback)` para migracion gradual a namespaces (e.g. `auth.login`).
+- Persistencia de idioma en `localStorage` via `getSavedLanguage()` / `saveLanguage()`.
+- El header `Accept-Language` se envia automaticamente en cada request API segun el idioma seleccionado.
+- Componentes reciben el objeto `t = dictionary[language]` como prop; todos los textos quemados fueron eliminados.
+
+**Backend (Spring Boot)**
+- `ResourceBundleMessageSource` configurado en `InternationalizationConfig` con fallback deshabilitado al locale del sistema (`setFallbackToSystemLocale(false)`).
+- `AcceptHeaderLocaleResolver` resuelve el idioma desde el header `Accept-Language`.
+- Todos los servicios usan `LocaleContextHolder.getLocale()` (NO `Locale.getDefault()`).
+- Controladores inyectan `Locale locale` y pasan mensajes traducidos en responses y excepciones.
+- Validaciones (`@NotBlank`, etc.) usan claves de mensaje: `{validation.email.required}`.
+- Archivos de propiedades:
+  - `messages.properties` — idioma por defecto (ingles)
+  - `messages_es.properties` — español
+
+### Flujo end-to-end
+
+```
+Usuario selecciona idioma → localStorage
+     ↓
+React lee localStorage → renderiza traducciones
+     ↓
+API requests incluyen Accept-Language: es|en
+     ↓
+Spring Boot resuelve locale → MessageSource → response traducida
+```
+
+### Como agregar un idioma
+
+1. Crear `messages_{lang}.properties` en `backend/src/main/resources/`.
+2. Agregar el objeto `{lang}` en `frontend/src/i18n.js` duplicando la estructura de `es` o `en`.
+3. Agregar la opcion `<option value="{lang}">{lang.toUpperCase()}</option>` en `LoginScreen` y `AppHeader`.
+
+### Como agregar una key
+
+**Frontend:** Agregar la key en ambos idiomas del `dictionary`:
+```js
+es: { myNewKey: 'Nuevo texto' },
+en: { myNewKey: 'New text' }
+```
+
+**Backend:** Agregar la key en ambos archivos `.properties`:
+```properties
+# messages.properties
+my.new.key=New text
+
+# messages_es.properties
+my.new.key=Nuevo texto
+```
+
+### Tests i18n
+
+- **Frontend**: `frontend/src/__tests__/i18n.test.jsx` valida persistencia, cambio dinamico y parity de keys.
+- **Backend**: `backend/src/test/java/.../web/I18nIntegrationTest.java` valida `Accept-Language` es/en y traduccion de errores.
+
 ## Pruebas
 
 ```bash
@@ -210,7 +273,7 @@ cd frontend && node test/selenium/erd.test.js
 
 - **Swagger/OpenAPI**: Documentacion interactiva en `/swagger-ui.html`
 - **GitHub Actions**: Pipeline CI/CD con 4 jobs de validacion
-- **Testing**: JUnit (16 tests), Vitest (34 tests), pytest (8 tests), Selenium (6 tests)
+- **Testing**: JUnit (48 tests), Vitest (39 tests), pytest (8 tests), Selenium (6 tests)
 - **Docker**: `docker compose up --build` levanta el sistema completo
 - **IA**: Predicciones con regresion lineal (scikit-learn)
 - **IoT**: Simulacion de sensores con generacion de anomalias

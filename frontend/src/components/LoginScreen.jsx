@@ -36,7 +36,7 @@ export function LoginScreen({ language, setLanguage, t, onLogin, onGoogleLogin, 
           <div className="loginBrand">
             <span className="brandMark"><Leaf size={26} /></span>
             <div>
-              <p className="eyebrow">Greenhouse Manager</p>
+              <p className="eyebrow">{t.brandTitle}</p>
               <h1>{t.resetPassword}</h1>
             </div>
           </div>
@@ -74,7 +74,7 @@ export function LoginScreen({ language, setLanguage, t, onLogin, onGoogleLogin, 
             <Leaf size={26} />
           </span>
           <div>
-            <p className="eyebrow">Greenhouse Manager</p>
+            <p className="eyebrow">{t.brandTitle}</p>
             <h1>{t.loginTitle}</h1>
             <p className="subtitle">{t.loginSubtitle}</p>
           </div>
@@ -92,14 +92,14 @@ export function LoginScreen({ language, setLanguage, t, onLogin, onGoogleLogin, 
             {t.email}
             <span className="inputWrap">
               <Mail size={18} />
-              <input required type="email" placeholder="admin@greenhouse.local" value={email} onChange={(event) => setEmail(event.target.value)} />
+              <input required type="email" placeholder={t.emailPlaceholder} value={email} onChange={(event) => setEmail(event.target.value)} />
             </span>
           </label>
           <label>
             {t.password}
             <span className="inputWrap">
               <LockKeyhole size={18} />
-              <input required minLength="4" type="password" placeholder="admin1234" value={password} onChange={(event) => setPassword(event.target.value)} />
+              <input required minLength="4" type="password" placeholder={t.passwordPlaceholder} value={password} onChange={(event) => setPassword(event.target.value)} />
             </span>
           </label>
           {error && <p className="loginError" role="alert">{error}</p>}

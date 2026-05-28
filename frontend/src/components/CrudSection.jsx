@@ -12,9 +12,10 @@ export function CrudSection({
   onCreate,
   onUpdate,
   onDelete,
-  deleteLabel = 'Eliminar',
+  deleteLabel,
   t
 }) {
+  const effectiveDeleteLabel = deleteLabel || t?.deleteItem || 'Delete';
   const [form, setForm] = useState(emptyItem);
   const [editing, setEditing] = useState(null);
   const pagination = usePagination(items, 5);
@@ -72,7 +73,7 @@ export function CrudSection({
                 </div>
                 <div className="rowActions">
                   <button type="button" onClick={() => startEdit(item)}><Pencil size={16} />{t.edit}</button>
-                  {fields.length > 0 && <button className="dangerButton" type="button" onClick={() => onDelete(item)}><Trash2 size={16} />{deleteLabel}</button>}
+                  {fields.length > 0 && <button className="dangerButton" type="button" onClick={() => onDelete(item)}><Trash2 size={16} />{effectiveDeleteLabel}</button>}
                 </div>
               </article>
             ))}

@@ -4,9 +4,12 @@ import com.example.greenhouse.web.dto.ApiErrorResponse;
 import com.example.greenhouse.web.dto.ValidationErrorResponse;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -22,6 +25,12 @@ public class GlobalExceptionHandler {
 
   private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+  private final MessageSource messages;
+
+  public GlobalExceptionHandler(MessageSource messages) {
+    this.messages = messages;
+  }
+
   @ExceptionHandler(ResponseStatusException.class)
   public ResponseEntity<ApiErrorResponse> handleResponseStatus(ResponseStatusException ex, WebRequest request) {
     log.warn("ResponseStatusException {}: {}", ex.getStatusCode().value(), ex.getReason());
@@ -35,11 +44,12 @@ public class GlobalExceptionHandler {
       fieldErrors.put(error.getField(), error.getDefaultMessage());
     }
     log.warn("Validation failed for {}: {}", request.getDescription(false), fieldErrors);
+    Locale locale = LocaleContextHolder.getLocale();
     var body = new ValidationErrorResponse(
         LocalDateTime.now().toString(),
         400,
-        "Validation Failed",
-        "Error de validacion en los campos enviados",
+        messages.getMessage("validation.error.title", null, "Validation Failed", locale),
+        messages.getMessage("validation.error", null, "Validation error in the submitted fields", locale),
         request.getDescription(false).replace("uri=", ""),
         fieldErrors);
     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
@@ -54,13 +64,15 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(AccessDeniedException.class)
   public ResponseEntity<ApiErrorResponse> handleAccessDenied(AccessDeniedException ex, WebRequest request) {
     log.warn("AccessDeniedException for {}: {}", request.getDescription(false), ex.getMessage());
-    return buildResponse(403, "No tiene permisos para acceder a este recurso", request);
+    Locale locale = LocaleContextHolder.getLocale();
+    return buildResponse(403, messages.getMessage("access.denied", null, locale), request);
   }
 
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ApiErrorResponse> handleGeneral(Exception ex, WebRequest request) {
     log.error("Unhandled exception for {}: {}", request.getDescription(false), ex.getMessage(), ex);
-    return buildResponse(500, "Error interno del servidor", request);
+    Locale locale = LocaleContextHolder.getLocale();
+    return buildResponse(500, messages.getMessage("internal.error", null, locale), request);
   }
 
   private ResponseEntity<ApiErrorResponse> buildResponse(int status, String message, WebRequest request) {

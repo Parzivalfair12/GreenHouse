@@ -22,6 +22,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,18 +41,25 @@ public class RuleEngineService {
   private final AutomationRuleRepository rules;
   private final IrrigationEventRepository irrigationEvents;
   private final AuditLogService audit;
+  private final MessageSource messages;
 
   public RuleEngineService(
       AlertRepository alerts,
       ActuatorRepository actuators,
       AutomationRuleRepository rules,
       IrrigationEventRepository irrigationEvents,
-      AuditLogService audit) {
+      AuditLogService audit,
+      MessageSource messages) {
     this.alerts = alerts;
     this.actuators = actuators;
     this.rules = rules;
     this.irrigationEvents = irrigationEvents;
     this.audit = audit;
+    this.messages = messages;
+  }
+
+  private String msg(String key, Object... args) {
+    return messages.getMessage(key, args, key, LocaleContextHolder.getLocale());
   }
 
   @Transactional
@@ -61,10 +70,10 @@ public class RuleEngineService {
 
   private void evaluateThresholds(Sensor sensor, Reading reading) {
     if (sensor.maxThreshold != null && reading.value.compareTo(sensor.maxThreshold) > 0) {
-      createAlert(sensor, "Lectura " + reading.value + " por encima del limite " + sensor.maxThreshold, AlertSeverity.WARNING);
+      createAlert(sensor, msg("alert.reading.above.threshold", reading.value, sensor.maxThreshold), AlertSeverity.WARNING);
     }
     if (sensor.minThreshold != null && reading.value.compareTo(sensor.minThreshold) < 0) {
-      createAlert(sensor, "Lectura " + reading.value + " por debajo del limite " + sensor.minThreshold, AlertSeverity.CRITICAL);
+      createAlert(sensor, msg("alert.reading.below.threshold", reading.value, sensor.minThreshold), AlertSeverity.CRITICAL);
     }
   }
 
@@ -105,8 +114,7 @@ public class RuleEngineService {
     if (target == null) {
       log.warn("No irrigation actuator found for greenhouse {} on rule {}",
           sensor.greenhouse.id, rule.id);
-      createAlert(sensor, "Humedad baja (" + reading.value + "): no hay actuador de riego disponible",
-          AlertSeverity.CRITICAL);
+      createAlert(sensor, msg("alert.no.actuator", reading.value), AlertSeverity.CRITICAL);
       return;
     }
 
@@ -127,8 +135,8 @@ public class RuleEngineService {
       }
       irrigationEvents.save(event);
 
-      audit.log("Regla automatica",
-          "Humedad baja (" + reading.value + ") activo " + target.name + " por regla " + rule.name,
+      audit.log(msg("audit.rule.activated.title"),
+          msg("audit.rule.activated.body", reading.value, target.name, rule.name),
           ActionOrigin.AUTOMATIC, sensor.greenhouse, null);
       log.info("Activated actuator {} for rule {} in greenhouse {}",
           target.id, rule.id, sensor.greenhouse.id);
@@ -137,10 +145,9 @@ public class RuleEngineService {
     // Only create alert if not already resolved recently for this sensor
     boolean alreadyOpen = alerts.findByResolvedFalseOrderByCreatedAtDesc().stream()
         .anyMatch(a -> a.sensor != null && a.sensor.id.equals(sensor.id)
-            && a.message.contains("Humedad baja") && !a.resolved);
+            && a.severity == AlertSeverity.WARNING && !a.resolved);
     if (!alreadyOpen) {
-      createAlert(sensor, "Humedad baja (" + reading.value + "): riego automatico activado por regla " + rule.name,
-          AlertSeverity.WARNING);
+      createAlert(sensor, msg("alert.irrigation.activated", reading.value, rule.name), AlertSeverity.WARNING);
     }
   }
 
@@ -154,8 +161,8 @@ public class RuleEngineService {
     if (target != null && target.enabled) {
       target.enabled = false;
       actuators.save(target);
-      audit.log("Regla automatica",
-          "Humedad normal (" + reading.value + ") desactivo " + target.name + " por regla " + rule.name,
+      audit.log(msg("audit.rule.deactivated.title"),
+          msg("audit.rule.deactivated.body", reading.value, target.name, rule.name),
           ActionOrigin.AUTOMATIC, sensor.greenhouse, null);
       log.info("Deactivated actuator {} for rule {} in greenhouse {}",
           target.id, rule.id, sensor.greenhouse.id);

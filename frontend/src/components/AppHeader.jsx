@@ -32,7 +32,7 @@ export function SidebarBrand({ t }) {
     <div className="sidebarBrand">
       <span className="brandIcon"><Leaf size={28} /></span>
       <div>
-        <strong>GREENHOUSE<br />MANAGER</strong>
+        <strong>{t.brandName}</strong>
         <span>{t.title}</span>
       </div>
     </div>

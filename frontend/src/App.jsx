@@ -71,7 +71,7 @@ import { ManualSection } from './components/ManualSection.jsx';
 import { Navbar } from './components/Navbar.jsx';
 import { OperationsSection } from './components/OperationsSection.jsx';
 import { UsersSection } from './components/UsersSection.jsx';
-import { dictionary } from './i18n.js';
+import { dictionary, getSavedLanguage, saveLanguage } from './i18n.js';
 import './styles.css';
 
 const emptyGreenhouse = { name: '', location: '', areaSquareMeters: 40, active: true };
@@ -84,7 +84,7 @@ export function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const [theme, setTheme] = useState(() => localStorage.getItem('greenhouse-theme') ?? 'dark');
-  const [language, setLanguage] = useState('es');
+  const [language, setLanguage] = useState(getSavedLanguage);
   const [session, setSession] = useStoredSession();
   const [activeSection, setActiveSection] = useState('dashboard');
 
@@ -125,6 +125,11 @@ export function App() {
 
   function toggleTheme() {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  }
+
+  function handleSetLanguage(lang) {
+    setLanguage(lang);
+    saveLanguage(lang);
   }
 
   async function refresh() {
@@ -234,11 +239,11 @@ export function App() {
           clearOAuthQuery();
         })
         .catch(() => {
-          setLoginError('Error de autenticacion OAuth');
+          setLoginError(t.oauthError);
           clearOAuthQuery();
         });
     } else if (params.get('status') === 'error') {
-      setLoginError(params.get('message') ?? 'Error de autenticacion OAuth');
+      setLoginError(params.get('message') ?? t.oauthError);
       clearOAuthQuery();
     } else {
       clearOAuthQuery();
@@ -267,8 +272,8 @@ export function App() {
   const sections = [
     { id: 'dashboard', label: t.dashboard, icon: LayoutDashboard },
     { id: 'greenhouses', label: t.greenhouses, icon: Warehouse },
-    { id: 'architecture', label: 'Arquitectura', icon: Activity },
-    { id: 'dictionary', label: 'Diccionario', icon: Database },
+    { id: 'architecture', label: t.architecture, icon: Activity },
+    { id: 'dictionary', label: t.dataDictionaryTitle, icon: Database },
     { id: 'zones', label: t.zones, icon: MapIcon },
     { id: 'sensors', label: t.sensors, icon: Radio },
     { id: 'readings', label: t.readings, icon: Activity },
@@ -276,13 +281,13 @@ export function App() {
     { id: 'rules', label: t.rules, icon: ListChecks },
     { id: 'operations', label: t.operations, icon: Activity },
     { id: 'alerts', label: t.alerts, icon: Bell },
-    { id: 'ia', label: 'IA', icon: Cpu },
-    { id: 'taiga', label: 'Taiga', icon: ListChecks },
+    { id: 'ia', label: t.iaNav || 'IA', icon: Cpu },
+    { id: 'taiga', label: t.taigaNav || 'Taiga', icon: ListChecks },
     { id: 'logs', label: t.auditLog, icon: BookOpen },
     { id: 'users', label: t.users, icon: Users },
     { id: 'data', label: t.data, icon: Database },
     { id: 'manual', label: t.manual, icon: CircleHelp },
-    { id: 'erd', label: 'ERD', icon: Share2, action: () => navigate('/erd') }
+    { id: 'erd', label: t.erd, icon: Share2, action: () => navigate('/erd') }
   ];
 
   useEffect(() => {
@@ -340,7 +345,7 @@ export function App() {
       ...greenhouseForm,
       areaSquareMeters: Number(greenhouseForm.areaSquareMeters)
     });
-    showToast(`Invernadero creado: ${created.name}`);
+      showToast(`${t.greenhouseCreated}: ${created.name}`);
     setGreenhouseForm(emptyGreenhouse);
     await refresh();
     setSelectedId(created.id);
@@ -354,14 +359,14 @@ export function App() {
       ...greenhouseEditForm,
       areaSquareMeters: Number(greenhouseEditForm.areaSquareMeters)
     });
-    showToast(`Invernadero actualizado: ${updated.name}`);
+      showToast(`${t.greenhouseUpdated}: ${updated.name}`);
     await refresh();
   }
 
   async function handleDeleteGreenhouse() {
     if (!selected) return;
     await deleteGreenhouse(selected.id);
-    showToast(`Invernadero eliminado: ${selected.name}`);
+      showToast(`${t.greenhouseDeleted}: ${selected.name}`);
     await refresh();
   }
 
@@ -382,7 +387,7 @@ export function App() {
     event.preventDefault();
     if (!selected) return;
     await addCrop(selected.id, cropForm);
-    showToast('Cultivo agregado');
+      showToast(t.cropAdded);
     setCropForm(emptyCrop);
     await refresh();
   }
@@ -390,77 +395,78 @@ export function App() {
   async function handleUpdateCrop(cropId, payload) {
     if (!selected) return;
     await updateCrop(selected.id, cropId, payload);
-    showToast('Cultivo actualizado');
-    await refresh();
-  }
+      showToast(t.cropUpdated);
+      setCropForm(emptyCrop);
+      await refresh();
+    }
 
-  async function handleAddSensor(event) {
-    event.preventDefault();
-    if (!selected) return;
-    await addSensor(selected.id, {
-      ...sensorForm,
-      minThreshold: Number(sensorForm.minThreshold),
-      maxThreshold: Number(sensorForm.maxThreshold)
-    });
-    showToast('Sensor agregado');
-    setSensorForm(emptySensor);
-    await refresh();
-  }
+    async function handleAddSensor(event) {
+      event.preventDefault();
+      if (!selected) return;
+      await addSensor(selected.id, {
+        ...sensorForm,
+        minThreshold: Number(sensorForm.minThreshold),
+        maxThreshold: Number(sensorForm.maxThreshold)
+      });
+      showToast(t.sensorAdded);
+      setSensorForm(emptySensor);
+      await refresh();
+    }
 
-  async function handleUpdateSensor(sensorId, payload) {
-    if (!selected) return;
-    await updateSensor(selected.id, sensorId, {
-      ...payload,
-      minThreshold: Number(payload.minThreshold),
-      maxThreshold: Number(payload.maxThreshold)
-    });
-    showToast('Sensor actualizado');
-    await refresh();
-  }
+    async function handleUpdateSensor(sensorId, payload) {
+      if (!selected) return;
+      await updateSensor(selected.id, sensorId, {
+        ...payload,
+        minThreshold: Number(payload.minThreshold),
+        maxThreshold: Number(payload.maxThreshold)
+      });
+      showToast(t.sensorUpdated);
+      await refresh();
+    }
 
-  async function handleAddIrrigation(event) {
-    event.preventDefault();
-    if (!selected) return;
-    await addIrrigation(selected.id, {
-      ...irrigationForm,
-      durationMinutes: Number(irrigationForm.durationMinutes),
-      waterLiters: Number(irrigationForm.waterLiters)
-    });
-    showToast('Riego registrado');
-    setIrrigationForm(emptyIrrigation);
-    await refresh();
-  }
+    async function handleAddIrrigation(event) {
+      event.preventDefault();
+      if (!selected) return;
+      await addIrrigation(selected.id, {
+        ...irrigationForm,
+        durationMinutes: Number(irrigationForm.durationMinutes),
+        waterLiters: Number(irrigationForm.waterLiters)
+      });
+      showToast(t.irrigationRegistered);
+      setIrrigationForm(emptyIrrigation);
+      await refresh();
+    }
 
-  async function handleUpdateIrrigation(eventId, payload) {
-    if (!selected) return;
-    await updateIrrigation(selected.id, eventId, {
-      ...payload,
-      durationMinutes: Number(payload.durationMinutes),
-      waterLiters: Number(payload.waterLiters)
-    });
-    showToast('Riego actualizado');
-    await refresh();
-  }
+    async function handleUpdateIrrigation(eventId, payload) {
+      if (!selected) return;
+      await updateIrrigation(selected.id, eventId, {
+        ...payload,
+        durationMinutes: Number(payload.durationMinutes),
+        waterLiters: Number(payload.waterLiters)
+      });
+      showToast(t.irrigationUpdated);
+      await refresh();
+    }
 
-  async function handleResolveAlert(alertId) {
-    await resolveAlert(alertId);
-    showToast('Alerta resuelta');
-    await refresh();
-  }
+    async function handleResolveAlert(alertId) {
+      await resolveAlert(alertId);
+      showToast(t.alertResolved);
+      await refresh();
+    }
 
-  async function handleCreateUser(event) {
-    event.preventDefault();
-    const created = await createUser(userForm);
-    showToast(`Usuario creado: ${created.email}`);
-    setUserForm(emptyUser);
-    await refresh();
-  }
+    async function handleCreateUser(event) {
+      event.preventDefault();
+      const created = await createUser(userForm);
+      showToast(`${t.userCreatedMsg}: ${created.email}`);
+      setUserForm(emptyUser);
+      await refresh();
+    }
 
-  async function handleChangeRole(userId, role) {
-    const updated = await updateUserRole(userId, role);
-    showToast(`Rol actualizado: ${updated.email}`);
-    await refresh();
-  }
+    async function handleChangeRole(userId, role) {
+      const updated = await updateUserRole(userId, role);
+      showToast(`${t.roleUpdatedMsg}: ${updated.email}`);
+      await refresh();
+    }
 
   function exportJson() {
     const payload = JSON.stringify({ greenhouses, alerts }, null, 2);
@@ -468,7 +474,7 @@ export function App() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'modelo-invernadero-exportado.json';
+    link.download = t.exportFilename;
     link.click();
     URL.revokeObjectURL(url);
   }
@@ -478,7 +484,7 @@ export function App() {
       <div className={`theme-${theme}`}>
         <LoginScreen
           language={language}
-          setLanguage={setLanguage}
+          setLanguage={handleSetLanguage}
           t={t}
           onLogin={handleLogin}
           onGoogleLogin={handleGoogleLogin}
@@ -494,7 +500,7 @@ export function App() {
     return (
       <div className={`theme-${theme}`}>
         <Routes>
-          <Route path="/erd" element={<ERDViewer />} />
+          <Route path="/erd" element={<ERDViewer t={t} />} />
         </Routes>
       </div>
     );
@@ -505,17 +511,17 @@ export function App() {
     <main className={`appShell theme-${theme}`}>
       <aside className="sidebar">
         <SidebarBrand t={t} />
-        <Navbar sections={sections} activeSection={activeSection} onChange={setActiveSection} alertsCount={alerts.length} />
+        <Navbar sections={sections} activeSection={activeSection} onChange={setActiveSection} alertsCount={alerts.length} t={t} />
         <div className="sidebarFooter">
-          <button className="themeToggle" type="button" onClick={toggleTheme} aria-label="Cambiar tema">
+          <button className="themeToggle" type="button" onClick={toggleTheme} aria-label={t.changeTheme}>
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
           <span className="versionBadge">Version 2.1.0</span>
         </div>
       </aside>
       <section className="mainArea">
-        <AppHeader language={language} setLanguage={setLanguage} session={session} t={t} onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme} />
-        <ToastContainer />
+        <AppHeader language={language} setLanguage={handleSetLanguage} session={session} t={t} onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme} />
+        <ToastContainer t={t} />
         {session && !session.verified && session.provider === 'email' && (
           <div className="verificationBanner" style={{ background: '#b45309', color: '#fff', padding: '10px 16px', textAlign: 'center', fontSize: '14px' }}>
             {t.accountNotVerified}{' '}
@@ -553,8 +559,8 @@ export function App() {
           t={t}
           openAlerts={() => setActiveSection('alerts')}
           simulatorRunning={simulatorRunning}
-          onStartSimulator={async () => { await startSimulator(); setSimulatorRunning(true); showToast('Simulador IoT iniciado', 'success'); }}
-          onStopSimulator={async () => { await stopSimulator(); setSimulatorRunning(false); showToast('Simulador IoT detenido', 'info'); }}
+          onStartSimulator={async () => { await startSimulator(); setSimulatorRunning(true); showToast(t.simulatorStarted, 'success'); }}
+          onStopSimulator={async () => { await stopSimulator(); setSimulatorRunning(false); showToast(t.simulatorStopped, 'info'); }}
         />
       )}
 

@@ -48,10 +48,10 @@ export function OperationsSection({
             <OperationForm title={t.addSensor} onSubmit={onAddSensor}>
               <input required placeholder={t.sensorCode} value={sensorForm.code} onChange={(event) => setSensorForm({ ...sensorForm, code: event.target.value })} />
               <select value={sensorForm.type} onChange={(event) => setSensorForm({ ...sensorForm, type: event.target.value })}>
-                <option value="TEMPERATURE">TEMPERATURE</option>
-                <option value="HUMIDITY">HUMIDITY</option>
-                <option value="SOIL_MOISTURE">SOIL_MOISTURE</option>
-                <option value="LIGHT">LIGHT</option>
+                <option value="TEMPERATURE">{t.sensorTypes.TEMPERATURE}</option>
+                <option value="HUMIDITY">{t.sensorTypes.HUMIDITY}</option>
+                <option value="SOIL_MOISTURE">{t.sensorTypes.SOIL_MOISTURE}</option>
+                <option value="LIGHT">{t.sensorTypes.LIGHT}</option>
               </select>
               <input required placeholder={t.unit} value={sensorForm.unit} onChange={(event) => setSensorForm({ ...sensorForm, unit: event.target.value })} />
               <button type="submit"><Plus size={18} />{t.addSensor}</button>
@@ -60,8 +60,8 @@ export function OperationsSection({
               <input required min="1" type="number" placeholder={t.duration} value={irrigationForm.durationMinutes} onChange={(event) => setIrrigationForm({ ...irrigationForm, durationMinutes: event.target.value })} />
               <input required min="1" type="number" placeholder={t.water} value={irrigationForm.waterLiters} onChange={(event) => setIrrigationForm({ ...irrigationForm, waterLiters: event.target.value })} />
               <select value={irrigationForm.mode} onChange={(event) => setIrrigationForm({ ...irrigationForm, mode: event.target.value })}>
-                <option value="MANUAL">MANUAL</option>
-                <option value="AUTOMATIC">AUTOMATIC</option>
+                <option value="MANUAL">{t.irrigationModes.MANUAL}</option>
+                <option value="AUTOMATIC">{t.irrigationModes.AUTOMATIC}</option>
               </select>
               <button type="submit"><Plus size={18} />{t.addIrrigation}</button>
             </OperationForm>
@@ -110,7 +110,7 @@ function EditableList({ title, items = [], empty, render, onEdit, t }) {
       {items.length === 0 ? <p className="emptyState">{empty}</p> : pagination.pagedItems.map((item) => (
         <div className="editableItem" key={item.id}>
           <span>{render(item)}</span>
-          <button type="button" onClick={() => onEdit(item)} aria-label="Editar">
+            <button type="button" onClick={() => onEdit(item)} aria-label={t.edit}>
             <Pencil size={16} />
           </button>
         </div>
@@ -156,14 +156,14 @@ function EditForms({
         }}>
           <input required placeholder={t.sensorCode} value={sensor.code} onChange={(event) => setSensor({ ...sensor, code: event.target.value })} />
           <select value={sensor.type} onChange={(event) => setSensor({ ...sensor, type: event.target.value })}>
-            <option value="TEMPERATURE">TEMPERATURE</option>
-            <option value="HUMIDITY">HUMIDITY</option>
-            <option value="SOIL_MOISTURE">SOIL_MOISTURE</option>
-            <option value="LIGHT">LIGHT</option>
+            <option value="TEMPERATURE">{t.sensorTypes.TEMPERATURE}</option>
+            <option value="HUMIDITY">{t.sensorTypes.HUMIDITY}</option>
+            <option value="SOIL_MOISTURE">{t.sensorTypes.SOIL_MOISTURE}</option>
+            <option value="LIGHT">{t.sensorTypes.LIGHT}</option>
           </select>
           <input required placeholder={t.unit} value={sensor.unit} onChange={(event) => setSensor({ ...sensor, unit: event.target.value })} />
-          <input type="number" placeholder="Min" value={sensor.minThreshold ?? ''} onChange={(event) => setSensor({ ...sensor, minThreshold: event.target.value })} />
-          <input type="number" placeholder="Max" value={sensor.maxThreshold ?? ''} onChange={(event) => setSensor({ ...sensor, maxThreshold: event.target.value })} />
+          <input type="number" placeholder={t.min} value={sensor.minThreshold ?? ''} onChange={(event) => setSensor({ ...sensor, minThreshold: event.target.value })} />
+          <input type="number" placeholder={t.max} value={sensor.maxThreshold ?? ''} onChange={(event) => setSensor({ ...sensor, maxThreshold: event.target.value })} />
           <button type="submit"><Save size={18} />{t.saveChanges}</button>
         </OperationForm>
       )}
@@ -177,8 +177,8 @@ function EditForms({
           <input required min="1" type="number" placeholder={t.duration} value={irrigation.durationMinutes} onChange={(event) => setIrrigation({ ...irrigation, durationMinutes: event.target.value })} />
           <input required min="1" type="number" placeholder={t.water} value={irrigation.waterLiters} onChange={(event) => setIrrigation({ ...irrigation, waterLiters: event.target.value })} />
           <select value={irrigation.mode} onChange={(event) => setIrrigation({ ...irrigation, mode: event.target.value })}>
-            <option value="MANUAL">MANUAL</option>
-            <option value="AUTOMATIC">AUTOMATIC</option>
+            <option value="MANUAL">{t.irrigationModes.MANUAL}</option>
+            <option value="AUTOMATIC">{t.irrigationModes.AUTOMATIC}</option>
           </select>
           <button type="submit"><Save size={18} />{t.saveChanges}</button>
         </OperationForm>

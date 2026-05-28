@@ -14,11 +14,13 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.web.server.ResponseStatusException;
 
 /** Authentication service backed by the app_user PostgreSQL table. */
@@ -31,22 +33,29 @@ public class AuthService {
   private final AppUserRepository users;
   private final PasswordEncoder passwordEncoder;
   private final List<String> oauthAdminEmails;
+  private final MessageSource messages;
 
   public AuthService(AppUserRepository users, PasswordEncoder passwordEncoder,
-      @Value("${app.oauth2.admin-emails:}") String adminEmails) {
+      @Value("${app.oauth2.admin-emails:}") String adminEmails,
+      MessageSource messages) {
     this.users = users;
     this.passwordEncoder = passwordEncoder;
+    this.messages = messages;
     this.oauthAdminEmails = adminEmails == null || adminEmails.isBlank()
         ? List.of()
         : List.of(adminEmails.toLowerCase().split("\\s*,\\s*"));
     log.info("OAuth2 admin emails: {}", this.oauthAdminEmails.isEmpty() ? "(none)" : this.oauthAdminEmails);
   }
 
+  private String msg(String key) {
+    return messages.getMessage(key, null, key, LocaleContextHolder.getLocale());
+  }
+
   @Transactional
   public AppUser syncGoogleUser(OAuth2User principal) {
     String email = principal.getAttribute("email");
     if (email == null || email.isBlank()) {
-      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Google account has no email");
+      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, msg("auth.no.email"));
     }
 
     String name = principal.getAttribute("name");
@@ -66,7 +75,7 @@ public class AuthService {
   @Transactional
   public AppUser register(UserCreateRequest request) {
     users.findByEmail(request.email()).ifPresent(existing -> {
-      throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
+      throw new ResponseStatusException(HttpStatus.CONFLICT, msg("user.email.exists"));
     });
     AppUser user = new AppUser();
     user.email = request.email();
@@ -88,7 +97,7 @@ public class AuthService {
     AppUser user = users.findByEmail(request.email().toLowerCase())
         .orElseThrow(() -> {
           log.warn("User not found: {}", request.email());
-          return new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciales invalidas");
+          return new ResponseStatusException(HttpStatus.UNAUTHORIZED, msg("auth.invalid.credentials"));
         });
 
     log.info("User found: {}, provider: {}, verified: {}, role: {}, hashLength: {}",
@@ -97,7 +106,7 @@ public class AuthService {
 
     if (!user.verified && "email".equals(user.provider)) {
       log.warn("Account not verified for: {}", request.email());
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cuenta no verificada");
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, msg("auth.account.not.verified"));
     }
 
     boolean matches = passwordEncoder.matches(request.password(), user.passwordHash);
@@ -106,7 +115,7 @@ public class AuthService {
 
     if (!matches) {
       log.warn("Password mismatch for: {}", request.email());
-      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciales invalidas");
+      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, msg("auth.invalid.credentials"));
     }
     log.info("Successful login: {}", request.email());
     return user;
@@ -115,16 +124,16 @@ public class AuthService {
   @Transactional
   public AppUser verifyEmailWithToken(String token) {
     if (token == null || token.isBlank()) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token requerido");
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, msg("auth.token.required"));
     }
 
     AppUser user = users.findAll().stream()
         .filter(u -> token.equals(u.verificationToken))
         .findFirst()
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token invalido o expirado"));
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, msg("auth.token.invalid")));
 
     if (user.verificationTokenExpiry == null || Instant.now().isAfter(user.verificationTokenExpiry)) {
-      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token expirado");
+      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, msg("auth.token.expired"));
     }
 
     user.verified = true;
@@ -138,7 +147,7 @@ public class AuthService {
   @Transactional
   public AppUser regenerateVerificationToken(String email) {
     AppUser user = users.findByEmail(email)
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, msg("user.not.found")));
     user.verificationToken = generateSecureToken();
     user.verificationTokenExpiry = Instant.now().plus(24, ChronoUnit.HOURS);
     users.save(user);
@@ -162,15 +171,15 @@ public class AuthService {
   @Transactional
   public void resetPasswordWithToken(String token, String newPassword) {
     if (token == null || token.isBlank() || newPassword == null || newPassword.isBlank()) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token y password requeridos");
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, msg("auth.token.password.required"));
     }
     AppUser user = users.findAll().stream()
         .filter(u -> token.equals(u.resetToken))
         .findFirst()
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token invalido o expirado"));
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, msg("auth.token.invalid")));
 
     if (user.resetTokenExpiry == null || Instant.now().isAfter(user.resetTokenExpiry)) {
-      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token expirado");
+      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, msg("auth.token.expired"));
     }
 
     user.passwordHash = passwordEncoder.encode(newPassword);
@@ -183,7 +192,7 @@ public class AuthService {
   @Transactional
   public void verifyEmail(String email) {
     AppUser user = users.findByEmail(email)
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, msg("user.not.found")));
     user.verified = true;
     user.verificationToken = null;
     user.verificationTokenExpiry = null;
@@ -194,7 +203,7 @@ public class AuthService {
   @Transactional
   public void resetPassword(String email, String newPassword) {
     AppUser user = users.findByEmail(email)
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, msg("user.not.found")));
     user.passwordHash = passwordEncoder.encode(newPassword);
     users.save(user);
     log.info("Reset password for: {}", email);

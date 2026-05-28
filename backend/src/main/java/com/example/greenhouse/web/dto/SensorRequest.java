@@ -6,9 +6,9 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
 public record SensorRequest(
-    @NotBlank String code,
-    @NotNull SensorType type,
-    @NotBlank String unit,
+    @NotBlank(message = "{validation.sensorCode.required}") String code,
+    @NotNull(message = "{validation.sensorType.required}") SensorType type,
+    @NotBlank(message = "{validation.unit.required}") String unit,
     BigDecimal minThreshold,
     BigDecimal maxThreshold,
-    @NotNull Long greenhouseId) {}
+    @NotNull(message = "{validation.greenhouseId.required}") Long greenhouseId) {}

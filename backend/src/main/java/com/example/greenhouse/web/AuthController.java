@@ -76,17 +76,17 @@ public class AuthController {
       @ApiResponse(responseCode = "409", description = "El correo ya existe")
   })
   @PostMapping("/register")
-  public ResponseEntity<?> register(@Valid @RequestBody UserCreateRequest request) {
+  public ResponseEntity<?> register(@Valid @RequestBody UserCreateRequest request, Locale locale) {
     AppUser user = service.register(request);
     if (emailEnabled) {
       emailService.sendVerificationEmail(user.email, user.fullName, user.verificationToken);
       return ResponseEntity.ok(Map.of(
-          "message", "Usuario registrado. Revisa tu correo para verificar tu cuenta.",
+          "message", messages.getMessage("auth.register.success.email", null, locale),
           "email", user.email));
     }
     // Fallback for academic/demo environments without SMTP configured
     return ResponseEntity.ok(Map.of(
-        "message", "Usuario registrado (modo desarrollo: email no configurado). Verifica tu cuenta con el token.",
+        "message", messages.getMessage("auth.register.success.dev", null, locale),
         "email", user.email,
         "token", user.verificationToken));
   }
@@ -98,10 +98,11 @@ public class AuthController {
   })
   @PostMapping("/refresh")
   @PreAuthorize("isAuthenticated()")
-  public LoginResponse refresh(Authentication authentication) {
+  public LoginResponse refresh(Authentication authentication, Locale locale) {
     String email = authentication.getName();
     AppUser user = service.findByEmail(email)
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no encontrado"));
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED,
+            messages.getMessage("auth.user.not.found", null, locale)));
     String token = jwtTokenProvider.generateToken(user);
     return new LoginResponse(token, user.email, user.fullName,
         List.of("ROLE_" + user.role.name()), expirationMs / 1000, user.verified);
@@ -109,79 +110,87 @@ public class AuthController {
 
   @Operation(summary = "Verificar email (GET)", description = "Marca el email como verificado usando un token desde un enlace")
   @GetMapping("/verify-email")
-  public Map<String, String> verifyEmailGet(@RequestParam("token") String token) {
+  public Map<String, String> verifyEmailGet(@RequestParam("token") String token, Locale locale) {
     service.verifyEmailWithToken(token);
-    return Map.of("message", "Email verificado correctamente");
+    return Map.of("message", messages.getMessage("auth.email.verified", null, locale));
   }
 
   @Operation(summary = "Verificar email (POST)", description = "Marca el email como verificado usando un token JWT o secure token")
   @PostMapping("/verify")
-  public Map<String, String> verifyEmailPost(@RequestBody Map<String, String> body) {
+  public Map<String, String> verifyEmailPost(@RequestBody Map<String, String> body, Locale locale) {
     String token = body.get("token");
     if (token == null || token.isBlank()) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token requerido");
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+          messages.getMessage("auth.token.required", null, locale));
     }
     // Try secure token first
     try {
       service.verifyEmailWithToken(token);
-      return Map.of("message", "Email verificado correctamente");
+      return Map.of("message", messages.getMessage("auth.email.verified", null, locale));
     } catch (ResponseStatusException ex) {
       // Fallback to JWT token for backwards compatibility
       if (!jwtTokenProvider.validateToken(token)) {
-        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token invalido o expirado");
+        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
+            messages.getMessage("auth.token.invalid", null, locale));
       }
       String email = jwtTokenProvider.getEmailFromToken(token);
       service.verifyEmail(email);
-      return Map.of("message", "Email verificado correctamente");
+      return Map.of("message", messages.getMessage("auth.email.verified", null, locale));
     }
   }
 
   @Operation(summary = "Reenviar verificacion", description = "Genera un nuevo token de verificacion y lo envia por email")
   @PostMapping("/resend-verification")
   @PreAuthorize("isAuthenticated()")
-  public Map<String, String> resendVerification(Authentication authentication) {
+  public Map<String, String> resendVerification(Authentication authentication, Locale locale) {
     String email = authentication.getName();
     AppUser user = service.regenerateVerificationToken(email);
     if (emailEnabled) {
       emailService.sendVerificationEmail(user.email, user.fullName, user.verificationToken);
-      return Map.of("message", "Correo de verificacion enviado");
+      return Map.of("message", messages.getMessage("auth.verification.sent", null, locale));
     }
-    return Map.of("message", "Token de verificacion regenerado (modo desarrollo)", "token", user.verificationToken);
+    return Map.of("message", messages.getMessage("auth.verification.regenerated.dev", null, locale),
+        "token", user.verificationToken);
   }
 
   @Operation(summary = "Solicitar recuperacion de contrasena", description = "Genera un token de recuperacion y lo envia por email")
   @PostMapping("/forgot-password")
-  public Map<String, String> forgotPassword(@RequestBody Map<String, String> body) {
+  public Map<String, String> forgotPassword(@RequestBody Map<String, String> body, Locale locale) {
     String email = body.get("email");
     if (email == null || email.isBlank()) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email requerido");
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+          messages.getMessage("auth.email.required", null, locale));
     }
     AppUser user = service.createPasswordResetToken(email);
+    String sentMessage = messages.getMessage("auth.password.reset.sent", null, locale);
     if (user == null) {
       // Do not reveal whether email exists
-      return Map.of("message", "Si el correo existe, se ha enviado un enlace de recuperacion");
+      return Map.of("message", sentMessage);
     }
     if (emailEnabled) {
       emailService.sendPasswordResetEmail(user.email, user.fullName, user.resetToken);
-      return Map.of("message", "Si el correo existe, se ha enviado un enlace de recuperacion");
+      return Map.of("message", sentMessage);
     }
     // Fallback for academic/demo environments
-    return Map.of("message", "Token de recuperacion generado (modo desarrollo: email no configurado)", "token", user.resetToken);
+    return Map.of("message", messages.getMessage("auth.password.reset.dev", null, locale),
+        "token", user.resetToken);
   }
 
   @Operation(summary = "Restablecer contrasena", description = "Usa el token de recuperacion para cambiar la contrasena")
   @PostMapping("/reset-password")
-  public Map<String, String> resetPassword(@RequestBody Map<String, String> body) {
+  public Map<String, String> resetPassword(@RequestBody Map<String, String> body, Locale locale) {
     String token = body.get("token");
     String newPassword = body.get("password");
     if (token == null || newPassword == null || newPassword.isBlank()) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token y password requeridos");
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+          messages.getMessage("auth.token.password.required", null, locale));
     }
     if (newPassword.length() < 4) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La contrasena debe tener al menos 4 caracteres");
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+          messages.getMessage("validation.password.required", null, locale));
     }
     service.resetPasswordWithToken(token, newPassword);
-    return Map.of("message", "Contrasena restablecida correctamente");
+    return Map.of("message", messages.getMessage("auth.password.reset.success", null, locale));
   }
 
   @Operation(summary = "Perfil actual", description = "Devuelve los datos del usuario autenticado (JWT u OAuth2)")

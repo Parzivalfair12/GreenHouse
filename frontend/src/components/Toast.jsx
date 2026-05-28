@@ -10,29 +10,31 @@ export function showToast(message, type = 'success') {
   }
 }
 
-export function ToastContainer() {
+export function ToastContainer({ t }) {
   const [toasts, setToasts] = useState([]);
 
   useEffect(() => {
     addToastGlobal = (toast) => {
       setToasts((prev) => [...prev, toast]);
       setTimeout(() => {
-        setToasts((prev) => prev.filter((t) => t.id !== toast.id));
+        setToasts((prev) => prev.filter((item) => item.id !== toast.id));
       }, 4000);
     };
     return () => { addToastGlobal = null; };
   }, []);
 
   function remove(id) {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+    setToasts((prev) => prev.filter((item) => item.id !== id));
   }
+
+  const closeLabel = t?.close ?? 'Cerrar';
 
   return (
     <div className="toastContainer">
       {toasts.map((toast) => (
         <div key={toast.id} className={`toast ${toast.type}`} role="status">
           <span>{toast.message}</span>
-          <button type="button" onClick={() => remove(toast.id)} aria-label="Cerrar">
+          <button type="button" onClick={() => remove(toast.id)} aria-label={closeLabel}>
             <X size={16} />
           </button>
         </div>

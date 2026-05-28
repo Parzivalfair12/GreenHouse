@@ -47,7 +47,7 @@ function applySavedPositions(nodes) {
   }));
 }
 
-function FlowCanvas({ nodes: rawNodes, edges: initialEdges }) {
+function FlowCanvas({ nodes: rawNodes, edges: initialEdges, t }) {
   const positionedNodes = useMemo(() => applySavedPositions(rawNodes), [rawNodes]);
   const [nodes, setNodes, onNodesChange] = useNodesState(positionedNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -191,20 +191,20 @@ function FlowCanvas({ nodes: rawNodes, edges: initialEdges }) {
         />
       </ReactFlow>
       <div className="erdToolbar">
-        <button className="erdToolbarBtn" onClick={() => reactFlowInstance.zoomIn({ duration: 200 })} title="Zoom in">
+        <button className="erdToolbarBtn" onClick={() => reactFlowInstance.zoomIn({ duration: 200 })} title={t?.zoomIn || 'Zoom in'}>
           <ZoomIn size={16} />
         </button>
-        <button className="erdToolbarBtn" onClick={() => reactFlowInstance.zoomOut({ duration: 200 })} title="Zoom out">
+        <button className="erdToolbarBtn" onClick={() => reactFlowInstance.zoomOut({ duration: 200 })} title={t?.zoomOut || 'Zoom out'}>
           <ZoomOut size={16} />
         </button>
-        <button className="erdToolbarBtn" onClick={fitView} title="Fit all">
+        <button className="erdToolbarBtn" onClick={fitView} title={t?.fitAll || 'Fit all'}>
           <Maximize2 size={16} />
         </button>
-        <button className="erdToolbarBtn" onClick={resetLayout} title="Reset layout">
+        <button className="erdToolbarBtn" onClick={resetLayout} title={t?.resetLayout || 'Reset layout'}>
           <RotateCcw size={16} />
         </button>
         {highlightedEntity && (
-          <button className="erdToolbarBtn" onClick={() => focusEntity(highlightedEntity)} title="Focus entity" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>
+          <button className="erdToolbarBtn" onClick={() => focusEntity(highlightedEntity)} title={t?.focusEntity || 'Focus entity'} style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>
             <Focus size={16} />
           </button>
         )}
@@ -213,7 +213,7 @@ function FlowCanvas({ nodes: rawNodes, edges: initialEdges }) {
   );
 }
 
-export function ERDViewer() {
+export function ERDViewer({ t }) {
   const [model, setModel] = useState(null);
   const [sidebarEntity, setSidebarEntity] = useState(null);
 
@@ -228,7 +228,7 @@ export function ERDViewer() {
     setSidebarEntity(name);
   }, []);
 
-  if (!model) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>Loading ERD...</div>;
+  if (!model) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>{t?.erdLoading || 'Loading ERD...'}</div>;
 
   return (
     <div className="erdLayout">
@@ -236,8 +236,9 @@ export function ERDViewer() {
         <ERDSidebar
           activeEntity={sidebarEntity}
           onSelectEntity={handleSelectEntity}
+          t={t}
         />
-        <FlowCanvas nodes={nodes} edges={edges} />
+        <FlowCanvas nodes={nodes} edges={edges} t={t} />
       </ReactFlowProvider>
     </div>
   );

@@ -1,8 +1,8 @@
-export function LoadingSpinner({ text = 'Cargando...' }) {
+export function LoadingSpinner({ text }) {
   return (
     <div className="loadingSpinner">
       <div className="spinner" />
-      <span>{text}</span>
+      <span>{text ?? '...'}</span>
     </div>
   );
 }

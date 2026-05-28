@@ -1,3 +1,5 @@
+import { getSavedLanguage } from './i18n.js';
+
 const STORAGE_KEY = 'greenhouse-session';
 
 // --- Session management (centralizado) ---
@@ -86,7 +88,7 @@ function authHeaders(extra = {}) {
     extra['Authorization'] = `Bearer ${session.token}`;
   }
   if (!extra['Accept-Language']) {
-    extra['Accept-Language'] = 'es';
+    extra['Accept-Language'] = getSavedLanguage();
   }
   return extra;
 }

@@ -156,9 +156,9 @@ function EntityCard({ entity, defaultOpen }) {
           <Table2 size={18} />
           <strong>{entity.name}</strong>
           <code className="dicTable">{entity.table}</code>
-          <span className="dicFieldsCount">{entity.fields.length} campos</span>
+          <span className="dicFieldsCount">{entity.fields.length} {t.fieldsCount}</span>
           {entity.relations?.length > 0 && (
-            <span className="dicRelCount">{entity.relations.length} relaciones</span>
+            <span className="dicRelCount">{entity.relations.length} {t.relationsCount}</span>
           )}
         </span>
         {entity.description && <span className="dicDesc">{entity.description}</span>}
@@ -168,11 +168,11 @@ function EntityCard({ entity, defaultOpen }) {
           <table className="dicTable">
             <thead>
               <tr>
-                <th>Campo</th>
-                <th>Tipo</th>
-                <th>Null</th>
-                <th>Default</th>
-                <th>Descripcion</th>
+                <th>{t.field}</th>
+                <th>{t.fieldType}</th>
+                <th>{t.nullable}</th>
+                <th>{t.defaultValue}</th>
+                <th>{t.description}</th>
               </tr>
             </thead>
             <tbody>
@@ -182,7 +182,7 @@ function EntityCard({ entity, defaultOpen }) {
           {entity.relations && entity.relations.length > 0 && (
             <div className="dicRelations">
               <Link2 size={16} />
-              <span>Relaciones: </span>
+              <span>{t.relations}: </span>
               {entity.relations.map((r, i) => (
                 <span key={r} className="dicRelTag">{r}{i < entity.relations.length - 1 ? ', ' : ''}</span>
               ))}
@@ -196,12 +196,12 @@ function EntityCard({ entity, defaultOpen }) {
 
 export function DataDictionarySection({ t }) {
   return (
-    <Section title={'Diccionario de Datos'} subtitle={'11 entidades, 8 enums, relaciones JPA reales'}>
+    <Section title={t.dataDictionaryTitle} subtitle={t.dataDictionarySubtitle}>
       <div className="dicLegend">
-        <span><Key size={14} /> Primary Key</span>
-        <span><span className="dicUniqueBadge">U</span> Unique</span>
-        <span><ListChecks size={14} /> Enum</span>
-        <span><span className="dicValidationBadge">V</span> Validacion</span>
+        <span><Key size={14} /> {t.primaryKey}</span>
+        <span><span className="dicUniqueBadge">U</span> {t.uniqueConstraint}</span>
+        <span><ListChecks size={14} /> {t.enumLabel}</span>
+        <span><span className="dicValidationBadge">V</span> {t.validationLabel}</span>
       </div>
       {ENTITIES.map((e, i) => <EntityCard key={e.name} entity={e} defaultOpen={i === 0} />)}
     </Section>

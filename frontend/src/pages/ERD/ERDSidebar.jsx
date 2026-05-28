@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Database, Download, FileText, Search } from 'lucide-react';
 import { loadModel, getEntitiesWithTables, getEntityCount, getEnumCount, exportModelJSON, exportSchemaSQL } from '../../config/modelParser.js';
 
-export function ERDSidebar({ activeEntity, onSelectEntity }) {
+export function ERDSidebar({ activeEntity, onSelectEntity, t }) {
   const [search, setSearch] = useState('');
   const [entities, setEntities] = useState([]);
   const [model, setModel] = useState(null);
@@ -48,16 +48,17 @@ export function ERDSidebar({ activeEntity, onSelectEntity }) {
     setTimeout(() => URL.revokeObjectURL(url), 100);
   }
 
-  if (!model) return <div className="erdSidebar"><div style={{ padding: 20, color: 'var(--muted)', fontSize: '0.82rem' }}>Loading...</div></div>;
+  const et = t || {};
+  if (!model) return <div className="erdSidebar"><div style={{ padding: 20, color: 'var(--muted)', fontSize: '0.82rem' }}>{et.erdLoadingSidebar || 'Loading...'}</div></div>;
 
   return (
     <div className="erdSidebar">
       <div className="erdSidebarHeader">
-        <h3>Entities</h3>
-        <p>Data model · {model.project}</p>
+        <h3>{et.erdEntities || 'Entities'}</h3>
+        <p>{et.erdDataModel || 'Data model'} · {model.project}</p>
         <div className="erdStats">
-          <span className="erdStat highlight">{stats.entities} entities</span>
-          <span className="erdStat">{stats.enums} enums</span>
+          <span className="erdStat highlight">{stats.entities} {et.entityCountLabel || 'entities'}</span>
+          <span className="erdStat">{stats.enums} {et.enumCountLabel || 'enums'}</span>
         </div>
       </div>
 
@@ -66,7 +67,7 @@ export function ERDSidebar({ activeEntity, onSelectEntity }) {
           <Search size={14} style={{ position: 'absolute', left: 10, top: 10, color: 'var(--muted)' }} />
           <input
             className="erdSearch"
-            placeholder="Search entities..."
+            placeholder={et.erdSearchPlaceholder || 'Search entities...'}
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{ paddingLeft: 30 }}
@@ -92,10 +93,10 @@ export function ERDSidebar({ activeEntity, onSelectEntity }) {
 
       <div className="erdSidebarFooter">
         <button className="erdExportBtn" onClick={handleExportJSON}>
-          <Download size={14} /> Export JSON
+          <Download size={14} /> {et.erdExportJson || 'Export JSON'}
         </button>
         <button className="erdExportBtn" onClick={handleExportSQL}>
-          <FileText size={14} /> Export SQL
+          <FileText size={14} /> {et.erdExportSql || 'Export SQL'}
         </button>
       </div>
     </div>

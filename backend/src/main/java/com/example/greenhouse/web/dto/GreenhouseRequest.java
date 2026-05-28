@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
 
 public record GreenhouseRequest(
-    @NotBlank String name,
-    @NotBlank String location,
-    @Positive BigDecimal areaSquareMeters,
+    @NotBlank(message = "{validation.name.required}") String name,
+    @NotBlank(message = "{validation.location.required}") String location,
+    @Positive(message = "{validation.area.positive}") BigDecimal areaSquareMeters,
     boolean active) {}
