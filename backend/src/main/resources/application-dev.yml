@@ -5,9 +5,15 @@
 
 spring:
   datasource:
+<<<<<<< HEAD
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+=======
+    url: ${SPRING_DATASOURCE_URL:${DB_URL:jdbc:postgresql://localhost:5432/greenhouse}}
+    username: ${SPRING_DATASOURCE_USERNAME:${DB_USERNAME:postgres}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:postgres}}
+>>>>>>> 552038c (fix(devops): stabilize quality gate workflows)
   jpa:
     show-sql: ${JPA_SHOW_SQL:true}
     hibernate:

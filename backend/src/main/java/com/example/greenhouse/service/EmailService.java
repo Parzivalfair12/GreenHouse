@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 /**
@@ -32,6 +33,7 @@ import org.springframework.stereotype.Service;
  * @since 2.1.0
  */
 @Service
+@ConditionalOnProperty(name = "greenhouse.email.enabled", havingValue = "true")
 public class EmailService {
   private static final Logger log = LoggerFactory.getLogger(EmailService.class);
 

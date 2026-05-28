@@ -20,7 +20,11 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+<<<<<<< HEAD
 import org.springframework.beans.factory.annotation.Autowired;
+=======
+import java.util.Optional;
+>>>>>>> 552038c (fix(devops): stabilize quality gate workflows)
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
@@ -61,14 +65,14 @@ import org.springframework.web.server.ResponseStatusException;
 public class AuthController {
   private final AuthService service;
   private final JwtTokenProvider jwtTokenProvider;
-  private final EmailService emailService;
+  private final Optional<EmailService> emailService;
   private final long expirationMs;
   private final MessageSource messages;
   private final boolean emailEnabled;
   private final ClientRegistrationRepository clientRegistrationRepository;
 
   public AuthController(AuthService service, JwtTokenProvider jwtTokenProvider,
-      EmailService emailService,
+      Optional<EmailService> emailService,
       @Value("${app.jwt-expiration-ms}") long expirationMs,
       @Value("${greenhouse.email.enabled:false}") boolean emailEnabled,
       MessageSource messages,
@@ -163,7 +167,7 @@ public class AuthController {
       @Valid @RequestBody UserCreateRequest request, Locale locale) {
     AppUser user = service.register(request);
     if (emailEnabled) {
-      emailService.sendVerificationEmail(user.email, user.fullName, user.verificationToken);
+      emailService.ifPresent(es -> es.sendVerificationEmail(user.email, user.fullName, user.verificationToken));
       return ResponseEntity.ok(Map.of(
           "message", messages.getMessage("auth.register.success.email", null, locale),
           "email", user.email));
@@ -250,7 +254,7 @@ public class AuthController {
     String email = authentication.getName();
     AppUser user = service.regenerateVerificationToken(email);
     if (emailEnabled) {
-      emailService.sendVerificationEmail(user.email, user.fullName, user.verificationToken);
+      emailService.ifPresent(es -> es.sendVerificationEmail(user.email, user.fullName, user.verificationToken));
       return Map.of("message", messages.getMessage("auth.verification.sent", null, locale));
     }
     return Map.of("message", messages.getMessage("auth.verification.regenerated.dev", null, locale),
@@ -277,7 +281,7 @@ public class AuthController {
       return Map.of("message", sentMessage);
     }
     if (emailEnabled) {
-      emailService.sendPasswordResetEmail(user.email, user.fullName, user.resetToken);
+      emailService.ifPresent(es -> es.sendPasswordResetEmail(user.email, user.fullName, user.resetToken));
       return Map.of("message", sentMessage);
     }
     // Fallback for academic/demo environments

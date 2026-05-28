@@ -1,9 +1,27 @@
 # Production profile — all secrets MUST come from environment variables (no defaults)
 spring:
   datasource:
+<<<<<<< HEAD
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+=======
+    url: ${SPRING_DATASOURCE_URL:${DB_URL}}
+    username: ${SPRING_DATASOURCE_USERNAME:${DB_USERNAME}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${HIKARI_MAX_POOL:10}
+      minimum-idle: ${HIKARI_MIN_IDLE:2}
+      idle-timeout: 300000
+      connection-timeout: 15000
+      max-lifetime: 600000
+      leak-detection-threshold: 60000
+      connection-test-query: SELECT 1
+      pool-name: NeonProdPool
+      initialization-fail-timeout: 30000
+      validation-timeout: 5000
+>>>>>>> 552038c (fix(devops): stabilize quality gate workflows)
   jpa:
     hibernate:
       ddl-auto: validate
