@@ -12,6 +12,11 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: './src/test/setup.js',
-    exclude: ['node_modules/**', 'dist/**', 'test/selenium/**']
+    exclude: ['node_modules/**', 'dist/**', 'test/selenium/**'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      exclude: ['node_modules/', 'dist/', 'test/selenium/', 'src/test/']
+    }
   }
 });
