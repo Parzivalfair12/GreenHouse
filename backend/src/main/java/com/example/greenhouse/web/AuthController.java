@@ -7,6 +7,7 @@ import com.example.greenhouse.service.EmailService;
 import com.example.greenhouse.web.dto.LoginRequest;
 import com.example.greenhouse.web.dto.LoginResponse;
 import com.example.greenhouse.web.dto.UserCreateRequest;
+import com.example.greenhouse.web.dto.UserProfileUpdateRequest;
 import com.example.greenhouse.web.dto.UserResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -26,6 +27,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -312,5 +314,34 @@ public class AuthController {
     }
     throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
         messages.getMessage("auth.unsupported", null, locale));
+  }
+
+  @Operation(summary = "Actualizar perfil", description = "Actualiza el nombre y email del usuario autenticado")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "Perfil actualizado",
+          content = @Content(mediaType = "application/json",
+              examples = @ExampleObject(value = "{\"id\":1,\"email\":\"nuevo@ejemplo.com\",\"fullName\":\"Juan Perez Actualizado\",\"role\":\"ADMIN\",\"provider\":\"email\",\"verified\":true}"))),
+      @ApiResponse(responseCode = "400", description = "Solicitud invalida"),
+      @ApiResponse(responseCode = "401", description = "No autenticado"),
+      @ApiResponse(responseCode = "409", description = "El correo ya existe"),
+      @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+  })
+  @PatchMapping("/me")
+  @PreAuthorize("isAuthenticated()")
+  public UserResponse updateProfile(Authentication authentication,
+      @Valid @RequestBody UserProfileUpdateRequest request, Locale locale) {
+    String email = authentication.getName();
+    AppUser user = service.findByEmail(email)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED,
+            messages.getMessage("auth.user.not.found", null, locale)));
+    if (!user.email.equalsIgnoreCase(request.email())) {
+      service.findByEmail(request.email()).ifPresent(existing -> {
+        throw new ResponseStatusException(HttpStatus.CONFLICT,
+            messages.getMessage("user.email.exists", null, locale));
+      });
+    }
+    user.email = request.email();
+    user.fullName = request.fullName();
+    return UserResponse.from(service.update(user));
   }
 }

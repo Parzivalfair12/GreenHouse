@@ -16,6 +16,16 @@ app:
   jwt-secret: test-only-secret-must-be-at-least-32-characters-long-ok
   jwt-expiration-ms: 86400000
   frontend-url: http://localhost:5173
+  taiga:
+    api-url: https://api.taiga.io/api/v1
+    token:
+    project-id: 0
+    connect-timeout-ms: 1000
+    read-timeout-ms: 1000
+  github:
+    token:
+    owner:
+    repo:
   oauth2:
     admin-emails:
 

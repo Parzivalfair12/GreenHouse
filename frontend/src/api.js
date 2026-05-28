@@ -493,11 +493,23 @@ export function updateUserRole(userId, role) {
   return sendJson(`/api/users/${userId}/role`, 'PATCH', { role });
 }
 
+export function deleteUser(userId) {
+  return deleteJson(`/api/users/${userId}`);
+}
+
+export function updateProfile(payload) {
+  return sendJson('/api/auth/me', 'PATCH', payload);
+}
+
 /**
  * Resolves an alert via PATCH (not POST/PUT).
  * Implemented inline because it uses PATCH + no JSON body, so sendJson
  * would send an unnecessary body. Follows the same retry-on-401 pattern.
  */
+export async function deleteAlert(alertId) {
+  return deleteJson(`/api/alerts/${alertId}`);
+}
+
 export async function resolveAlert(alertId) {
   const url = getApiUrl(`/api/alerts/${alertId}/resolve`);
   let response = await fetch(url, {
@@ -579,6 +591,109 @@ export async function fetchTaigaSummary() {
     credentials: 'include'
   });
   if (!response.ok) throw new Error(`Taiga summary failed: ${response.status}`);
+  return response.json();
+}
+
+export async function fetchTaigaEpics() {
+  const response = await fetch(getApiUrl('/api/taiga/epics'), {
+    headers: authHeaders(),
+    credentials: 'include'
+  });
+  if (!response.ok) throw new Error(`Taiga epics failed: ${response.status}`);
+  return response.json();
+}
+
+export async function fetchTaigaTraceability() {
+  const response = await fetch(getApiUrl('/api/taiga/traceability'), {
+    headers: authHeaders(),
+    credentials: 'include'
+  });
+  if (!response.ok) throw new Error(`Taiga traceability failed: ${response.status}`);
+  return response.json();
+}
+
+export async function fetchTaigaCommits() {
+  const response = await fetch(getApiUrl('/api/taiga/commits'), {
+    headers: authHeaders(),
+    credentials: 'include'
+  });
+  if (!response.ok) throw new Error(`Taiga commits failed: ${response.status}`);
+  return response.json();
+}
+
+export async function fetchGeneratedStories() {
+  const response = await fetch(getApiUrl('/api/taiga/generated-stories'), {
+    headers: authHeaders(),
+    credentials: 'include'
+  });
+  if (!response.ok) throw new Error(`Generated stories failed: ${response.status}`);
+  return response.json();
+}
+
+export async function syncTaigaStories() {
+  const response = await fetch(getApiUrl('/api/taiga/sync'), {
+    method: 'POST',
+    headers: authHeaders(),
+    credentials: 'include'
+  });
+  if (!response.ok) throw new Error(`Taiga sync failed: ${response.status}`);
+  return response.json();
+}
+
+// --- DevOps endpoints ---
+
+export async function fetchDevOpsSummary() {
+  const response = await fetch(getApiUrl('/api/devops/summary'), {
+    headers: authHeaders(),
+    credentials: 'include'
+  });
+  if (!response.ok) throw new Error(`DevOps summary failed: ${response.status}`);
+  return response.json();
+}
+
+export async function fetchDevOpsPipelines() {
+  const response = await fetch(getApiUrl('/api/devops/pipelines'), {
+    headers: authHeaders(),
+    credentials: 'include'
+  });
+  if (!response.ok) throw new Error(`DevOps pipelines failed: ${response.status}`);
+  return response.json();
+}
+
+export async function fetchDevOpsWorkflows() {
+  const response = await fetch(getApiUrl('/api/devops/workflows'), {
+    headers: authHeaders(),
+    credentials: 'include'
+  });
+  if (!response.ok) throw new Error(`DevOps workflows failed: ${response.status}`);
+  return response.json();
+}
+
+export async function syncDevOpsWorkflows() {
+  const response = await fetch(getApiUrl('/api/devops/sync'), {
+    method: 'POST',
+    headers: authHeaders(),
+    credentials: 'include'
+  });
+  if (!response.ok) throw new Error(`DevOps sync failed: ${response.status}`);
+  return response.json();
+}
+
+export async function fetchDevOpsAudit() {
+  const response = await fetch(getApiUrl('/api/devops/audit'), {
+    headers: authHeaders(),
+    credentials: 'include'
+  });
+  if (!response.ok) throw new Error(`DevOps audit failed: ${response.status}`);
+  return response.json();
+}
+
+export async function fetchDevOpsCommits(limit = 20) {
+  const response = await fetch(getApiUrl(`/api/devops/commits?limit=${limit}`), {
+    headers: authHeaders(),
+    credentials: 'include'
+  });
+  if (!response.ok) throw new Error(`DevOps commits failed: ${response.status}`);
   return response.json();
 }
 

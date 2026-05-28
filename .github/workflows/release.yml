@@ -1,0 +1,40 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        id: changelog
+        uses: mikepenz/release-changelog-builder-action@v5
+        with:
+          configuration: ".github/changelog-config.json"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build backend
+        run: mvn package -DskipTests
+        working-directory: backend
+
+      - name: Build frontend
+        run: npm install --legacy-peer-deps && npm run build
+        working-directory: frontend
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body: ${{ steps.changelog.outputs.changelog }}
+          files: |
+            backend/target/*.jar
+            frontend/dist/
+          generate_release_notes: true

@@ -3,6 +3,7 @@ package com.example.greenhouse.web;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -28,6 +29,7 @@ public class DebugController {
   }
 
   @GetMapping("/api/debug/env")
+  @PreAuthorize("hasRole('ADMIN')")
   public Map<String, Object> debugEnv() {
     String activeProfile = String.join(", ", env.getActiveProfiles());
     String clientIdPreview = googleClientId.length() > 10

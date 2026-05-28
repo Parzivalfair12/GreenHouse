@@ -60,4 +60,18 @@ public class AlertService {
     repository.save(alert);
     log.info("Alert {} resolved", id);
   }
+
+  /**
+   * Elimina una alerta del sistema.
+   *
+   * @param id el identificador de la alerta
+   * @throws IllegalArgumentException si no existe la alerta
+   * @since 2.2.0
+   */
+  @Transactional
+  public void delete(long id) {
+    Alert alert = repository.findById(id).orElseThrow(() -> new IllegalArgumentException("Alert not found"));
+    repository.delete(alert);
+    log.info("Alert {} deleted", id);
+  }
 }

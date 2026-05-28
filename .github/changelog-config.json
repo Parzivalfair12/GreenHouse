@@ -1,0 +1,18 @@
+{
+  "categories": [
+    { "title": "🚀 Features", "labels": ["feat"] },
+    { "title": "🐛 Bug Fixes", "labels": ["fix"] },
+    { "title": "📚 Documentation", "labels": ["docs"] },
+    { "title": "🧪 Tests", "labels": ["test"] },
+    { "title": "🎨 Style", "labels": ["style"] },
+    { "title": "🛠 Maintenance", "labels": ["refactor", "chore"] },
+    { "title": "🔧 CI/CD", "labels": ["ci"] },
+    { "title": "🔒 Security", "labels": ["security"] }
+  ],
+  "template": "${{CHANGELOG}}",
+  "pr_template": "- ${{TITLE}} (#${{NUMBER}})",
+  "tag_badge": true,
+  "tag_prefix": "v",
+  "unreleased_only": false,
+  "sort_by": "semver"
+}

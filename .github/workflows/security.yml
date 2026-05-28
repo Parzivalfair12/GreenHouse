@@ -1,0 +1,34 @@
+name: Security Scan
+
+on:
+  push:
+    branches: ["main", "master", "develop"]
+  pull_request:
+    branches: ["main", "master"]
+  schedule:
+    - cron: "0 6 * * 1" # Every Monday at 6:00 UTC
+
+jobs:
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: java, javascript, python
+      - uses: github/codeql-action/analyze@v3
+
+  dependency-check:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high

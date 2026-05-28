@@ -252,6 +252,15 @@ GreenHouse/
 | `docs/testing.md` | Guía de pruebas |
 | `docs/security.md` | Seguridad: JWT, OAuth, roles |
 | `docs/troubleshooting.md` | Solución de problemas comunes |
+| `docs/devops.md` | Integración DevOps completa |
+| `docs/taiga-integration.md` | Integración con Taiga.io |
+| `docs/traceability.md` | Matriz de trazabilidad del proyecto |
+| `docs/ci-cd.md` | Pipeline CI/CD completo |
+| `.github/workflows/ci.yml` | CI: 5 jobs con Jacoco + artifacts |
+| `.github/workflows/taiga-sync.yml` | Sincronización real Taiga.io |
+| `.github/workflows/security.yml` | CodeQL + Dependency Review |
+| `.github/workflows/release.yml` | Build + changelog + release |
+| `.github/changelog-config.json` | Config changelog automático |
 | `CHANGELOG.md` | Registro de cambios
 
 ## Pruebas

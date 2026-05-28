@@ -98,7 +98,7 @@ public class SecurityConfig {
             .requestMatchers("/api/auth/verify").permitAll()
             .requestMatchers("/api/public/**").permitAll()
             .requestMatchers("/api/health").permitAll()
-            .requestMatchers("/api/debug/**").permitAll()
+            .requestMatchers("/api/debug/**").hasRole("ADMIN")
             .requestMatchers("/error", "/swagger-ui/**", "/v3/api-docs/**", "/h2-console/**").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/users/**").hasRole("ADMIN")
             .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("ADMIN")

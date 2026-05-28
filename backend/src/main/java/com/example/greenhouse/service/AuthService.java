@@ -362,6 +362,18 @@ public class AuthService {
    * @throws ResponseStatusException 404 if user not found
    * @since 2.1.0
    */
+  /**
+   * Actualiza los datos basicos de un usuario existente.
+   *
+   * @param user el usuario con los datos actualizados
+   * @return el usuario persistido
+   * @since 2.2.0
+   */
+  @Transactional
+  public AppUser update(AppUser user) {
+    return users.save(user);
+  }
+
   @Transactional
   public void resetPassword(String email, String newPassword) {
     AppUser user = users.findByEmail(email)

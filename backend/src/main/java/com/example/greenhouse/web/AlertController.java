@@ -14,10 +14,13 @@ import java.util.List;
 import java.util.Locale;
 import org.springframework.context.MessageSource;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -71,5 +74,21 @@ public class AlertController {
       @Parameter(description = "ID de la alerta", required = true, example = "1") @PathVariable long id, Locale locale) {
     service.resolve(id);
     return new MessageResponse(messages.getMessage("alert.resolved", null, locale));
+  }
+
+  @Operation(summary = "Eliminar alerta", description = "Elimina permanentemente una alerta del sistema (requiere ADMIN)")
+  @ApiResponses({
+      @ApiResponse(responseCode = "204", description = "Alerta eliminada"),
+      @ApiResponse(responseCode = "401", description = "No autenticado"),
+      @ApiResponse(responseCode = "403", description = "No autorizado (requiere ADMIN)"),
+      @ApiResponse(responseCode = "404", description = "Alerta no encontrada"),
+      @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+  })
+  @DeleteMapping("/{id}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @PreAuthorize("hasRole('ADMIN')")
+  public void delete(
+      @Parameter(description = "ID de la alerta", required = true, example = "1") @PathVariable long id) {
+    service.delete(id);
   }
 }

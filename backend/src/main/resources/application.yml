@@ -30,10 +30,20 @@ app:
   ia-url: ${IA_URL:http://localhost:5000}
   jwt-secret: ${JWT_SECRET:dev-only-change-me-in-production-0123456789abcdef0123456789abcdef}
   jwt-expiration-ms: 86400000
+  taiga:
+    api-url: ${TAIGA_API_URL:https://api.taiga.io/api/v1}
+    token: ${TAIGA_TOKEN:}
+    project-id: ${TAIGA_PROJECT_ID:}
+    connect-timeout-ms: 5000
+    read-timeout-ms: 10000
   oauth2:
     enabled: ${OAUTH2_ENABLED:false}
     redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:8080/login/oauth2/code/google}
     admin-emails: ${OAUTH2_ADMIN_EMAILS:}
+  github:
+    token: ${GITHUB_TOKEN:}
+    owner: ${GITHUB_OWNER:}
+    repo: ${GITHUB_REPO:}
 
 greenhouse:
   seeder:

@@ -93,6 +93,7 @@ import { DataSection } from './components/DataSection.jsx';
 import { IaSection } from './components/IaSection.jsx';
 import { LogsSection } from './components/LogsSection.jsx';
 import { TaigaSection } from './components/TaigaSection.jsx';
+import { DevOpsSection } from './components/DevOpsSection.jsx';
 import { GreenhousesSection } from './components/GreenhousesSection.jsx';
 import { LoginScreen } from './components/LoginScreen.jsx';
 import { ManualSection } from './components/ManualSection.jsx';
@@ -355,6 +356,7 @@ export function App() {
     { id: 'alerts', label: t.alerts, icon: Bell },
     { id: 'ia', label: t.iaNav || 'IA', icon: Cpu },
     { id: 'taiga', label: t.taigaNav || 'Taiga', icon: ListChecks },
+    { id: 'devops', label: t.devopsNav || 'DevOps', icon: Cpu },
     { id: 'logs', label: t.auditLog, icon: BookOpen },
     { id: 'users', label: t.users, icon: Users },
     { id: 'data', label: t.data, icon: Database },
@@ -713,6 +715,7 @@ export function App() {
       {activeSection === 'alerts' && <AlertsSection alerts={alerts} onResolve={handleResolveAlert} t={t} />}
       {activeSection === 'ia' && <IaSection readings={readings} sensors={allSensors} t={t} />}
       {activeSection === 'taiga' && <TaigaSection t={t} />}
+      {activeSection === 'devops' && <DevOpsSection t={t} />}
       {activeSection === 'logs' && <LogsSection t={t} />}
       {activeSection === 'users' && (
         <UsersSection

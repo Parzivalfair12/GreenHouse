@@ -2,12 +2,13 @@ name: CI
 
 on:
   push:
-    branches: ["main", "master"]
+    branches: ["main", "master", "develop", "feature/**"]
   pull_request:
+    branches: ["main", "master"]
 
 jobs:
   backend:
-    name: Backend JUnit
+    name: Backend JUnit + Jacoco
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -19,11 +20,18 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
-      - name: Run backend tests
-        run: mvn test
+      - name: Run backend tests with coverage
+        run: mvn verify
+      - name: Upload Jacoco report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jacoco-report
+          path: backend/target/site/jacoco/
+          retention-days: 14
 
   frontend:
-    name: Frontend Vitest
+    name: Frontend Vitest + Build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -40,9 +48,16 @@ jobs:
       - name: Run ESLint
         run: npm run lint
       - name: Run frontend tests
-        run: npm test
+        run: npm test -- --coverage
       - name: Build frontend
         run: npm run build
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-build
+          path: frontend/dist/
+          retention-days: 14
 
   python-json:
     name: Python Model Validation
@@ -70,3 +85,24 @@ jobs:
         run: pip install -r requirements.txt
       - name: Run IA tests
         run: pytest
+
+  quality:
+    name: Quality Gate Summary
+    if: always()
+    needs: [backend, frontend, python-json, python-ia]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check test results
+        run: |
+          echo "## Quality Gate Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Backend: ${{ needs.backend.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Frontend: ${{ needs.frontend.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Python JSON: ${{ needs.python-json.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Python IA: ${{ needs.python-ia.result }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.backend.result }}" = "success" ] && [ "${{ needs.frontend.result }}" = "success" ]; then
+            echo "✅ All quality gates PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Some quality gates FAILED" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi

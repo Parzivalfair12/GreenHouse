@@ -1,0 +1,70 @@
+{
+    "summary":  {
+                    "point9Score":  "PARCIAL - EN PROGRESO",
+                    "failed":  3,
+                    "passRate":  62.5,
+                    "total":  8,
+                    "passed":  5
+                },
+    "validations":  [
+                        {
+                            "detail":  "124 source files compiled successfully",
+                            "status":  "PASS",
+                            "name":  "Backend Compile",
+                            "durationMs":  11775
+                        },
+                        {
+                            "detail":  "WARNING: A restricted method in java.lang.System has been called",
+                            "status":  "FAIL",
+                            "name":  "Backend Tests",
+                            "durationMs":  324649
+                        },
+                        {
+                            "detail":  [
+                                           "[ERROR] Failed to execute goal org.jacoco:jacoco-maven-plugin:0.8.12:check (check) on project greenhouse-api: Coverage checks have not been met. See log for details. -\u003e [Help 1]",
+                                           "[ERROR] ",
+                                           "[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.",
+                                           "[ERROR] Re-run Maven using the -X switch to enable full debug logging.",
+                                           "[ERROR] ",
+                                           "[ERROR] For more information about the errors and possible solutions, please read the following articles:",
+                                           "[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException"
+                                       ],
+                            "status":  "FAIL",
+                            "name":  "Jacoco Coverage",
+                            "durationMs":  22498
+                        },
+                        {
+                            "detail":  "39/39 tests passed",
+                            "status":  "PASS",
+                            "name":  "Frontend Tests",
+                            "durationMs":  12217
+                        },
+                        {
+                            "detail":  "\u001b[33m[plugin builtin:vite-reporter] ",
+                            "status":  "FAIL",
+                            "name":  "Frontend Build",
+                            "durationMs":  3851
+                        },
+                        {
+                            "detail":  "Configuration valid",
+                            "status":  "PASS",
+                            "name":  "Docker Compose",
+                            "durationMs":  436
+                        },
+                        {
+                            "detail":  "4 workflows found",
+                            "status":  "PASS",
+                            "name":  "GitHub Workflows",
+                            "durationMs":  157
+                        },
+                        {
+                            "detail":  "22 docs found",
+                            "status":  "PASS",
+                            "name":  "Documentation",
+                            "durationMs":  26
+                        }
+                    ],
+    "version":  "2.2.0",
+    "project":  "GreenHouse Manager",
+    "timestamp":  "2026-05-28T00:34:33"
+}

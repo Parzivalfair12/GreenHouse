@@ -1,0 +1,106 @@
+name: Taiga Sync
+
+on:
+  push:
+    branches: ["main", "master"]
+  workflow_dispatch:
+    inputs:
+      force_sync:
+        description: "Forzar sincronizacion completa"
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  sync:
+    name: Sincronizar historias con Taiga (real)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: greenhouse_test
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready -U test_user -d greenhouse_test
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Build backend JAR
+        run: mvn package -DskipTests -q
+        working-directory: backend
+
+      - name: Start backend server
+        env:
+          DB_URL: jdbc:postgresql://localhost:5432/greenhouse_test
+          DB_USERNAME: test_user
+          DB_PASSWORD: test_pass
+          JWT_SECRET: test-secret-for-github-actions-32-chars-minimum!
+          TAIGA_TOKEN: ${{ secrets.TAIGA_TOKEN }}
+          TAIGA_PROJECT_ID: ${{ secrets.TAIGA_PROJECT_ID }}
+          TAIGA_API_URL: ${{ secrets.TAIGA_API_URL }}
+        run: |
+          nohup java -jar backend/target/*.jar --spring.profiles.active=dev &
+          echo "Backend iniciado, esperando health check..."
+          for i in $(seq 1 30); do
+            sleep 5
+            if curl -sf http://localhost:8080/api/health > /dev/null 2>&1; then
+              echo "Backend healthy"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "Backend no respondio despues de 150s"
+              exit 1
+            fi
+          done
+
+      - name: Sync user stories to Taiga (REAL)
+        env:
+          TAIGA_TOKEN: ${{ secrets.TAIGA_TOKEN }}
+          TAIGA_PROJECT_ID: ${{ secrets.TAIGA_PROJECT_ID }}
+        run: |
+          if [ -z "$TAIGA_TOKEN" ] || [ -z "$TAIGA_PROJECT_ID" ]; then
+            echo "::warning title=Taiga Skipped::TAIGA_TOKEN o TAIGA_PROJECT_ID no configurados en secrets"
+            exit 0
+          fi
+          # Obtener JWT de autenticacion
+          AUTH_RESP=$(curl -sf -X POST http://localhost:8080/api/auth/login \
+            -H "Content-Type: application/json" \
+            -d '{"email":"admin@greenhouse.com","password":"admin1234"}') || true
+          TOKEN=$(echo "$AUTH_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('token',''))" 2>/dev/null || echo "")
+          if [ -z "$TOKEN" ]; then
+            echo "::error::No se pudo autenticar para sincronizar Taiga"
+            exit 1
+          fi
+          # Ejecutar sync real
+          SYNC_RESP=$(curl -sf -X POST http://localhost:8080/api/taiga/sync \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json") || true
+          echo "Sync response: $SYNC_RESP"
+          SUCCESS=$(echo "$SYNC_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('success',False))" 2>/dev/null || echo "false")
+          if [ "$SUCCESS" = "True" ] || [ "$SUCCESS" = "true" ]; then
+            echo "✅ Sincronizacion REAL exitosa"
+          else
+            echo "::error::Sincronizacion fallo o Taiga no configurado"
+          fi
+
+      - name: Generate traceability matrix
+        run: |
+          echo "# Matriz de Trazabilidad (generada automaticamente)" > docs/traceability-matrix.md
+          echo "" >> docs/traceability-matrix.md
+          echo "## Commits recientes" >> docs/traceability-matrix.md
+          echo "" >> docs/traceability-matrix.md
+          echo "| Hash | Mensaje | Tipo | Autor | Fecha |" >> docs/traceability-matrix.md
+          echo "|------|---------|------|-------|-------|" >> docs/traceability-matrix.md
+          git log --oneline --format="| %h | %s | $(git log -1 --format='%s' | grep -oP '^\w+' || echo '-') | %an | %ar |" -20 >> docs/traceability-matrix.md
